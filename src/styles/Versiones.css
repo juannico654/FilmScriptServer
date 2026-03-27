@@ -1,0 +1,24 @@
+.vr-list { display: flex; flex-direction: column; }
+.vr-item { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); position: relative; }
+.vr-item:last-child { border-bottom: none; }
+.vr-line { position: absolute; left: 14px; top: 40px; bottom: -16px; width: 1px; background: var(--border); }
+.vr-item:last-child .vr-line { display: none; }
+.vr-dot     { width: 30px; height: 30px; border-radius: 50%; background: var(--card); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; z-index: 1; }
+.vr-dot.cur { border-color: var(--accent); background: var(--accent-dim); }
+.vr-body    { flex: 1; }
+.vr-head    { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.vr-name    { font-size: 13px; font-weight: 500; color: var(--text); }
+.vr-tag     { font-size: 9px; padding: 2px 7px; border-radius: 100px; }
+.vr-cur     { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(232,197,71,0.2); }
+.vr-old     { background: rgba(90,89,104,0.14); color: var(--muted2); border: 1px solid var(--border); }
+.vr-meta    { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.vr-changes { font-size: 11px; color: var(--muted2); line-height: 1.6; }
+.vr-acts    { display: flex; gap: 7px; margin-top: 9px; }
+
+/* Confirm modal */
+.vr-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeDown 0.2s ease; }
+.vr-modal          { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px; width: 360px; max-width: 90vw; text-align: center; }
+.vr-modal-icon     { font-size: 32px; margin-bottom: 12px; }
+.vr-modal-title    { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--text); margin-bottom: 8px; }
+.vr-modal-sub      { font-size: 13px; color: var(--muted2); line-height: 1.6; margin-bottom: 22px; }
+.vr-modal-acts     { display: flex; gap: 8px; justify-content: center; }

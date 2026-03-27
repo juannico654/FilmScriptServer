@@ -1,0 +1,56 @@
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted, #888);
+  gap: 10px;
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 4px;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text, #e0e0e0);
+}
+
+.empty-sub {
+  font-size: 13px;
+  color: var(--muted2, #aaa);
+  max-width: 280px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+/* Dropdown menú en tarjeta proyecto */
+.proj-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--card-bg, #1a1a2e);
+  border: 1px solid var(--border, #2a2a3e);
+  border-radius: 8px;
+  min-width: 140px;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  overflow: hidden;
+}
+
+.proj-dd-item {
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--text, #e0e0e0);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.proj-dd-item:hover    { background: rgba(201,168,76,0.08); }
+.proj-dd-del           { color: #e05c5c !important; }
+.proj-dd-del:hover     { background: rgba(224,92,92,0.08) !important; }
