@@ -1,65 +1,80 @@
-import User from '../models/User.js';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import process from 'process';
+// src/controllers/authController.js
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
-// REGISTER
-export const register = async (req, res) => {
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+};
+
+// Registro
+const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const existe = await User.findOne({ email });
-    if (existe) {
-      return res.status(400).json({ message: "El usuario ya existe" });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Todos los campos son obligatorios' });
     }
 
-    const hash = await bcrypt.hash(password, 10);
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Este correo ya está registrado' });
+    }
 
-    const user = new User({
-      name,
-      email,
-      password: hash
-    });
-
+    const user = new User({ name, email, password });
     await user.save();
 
-    res.json({ message: "Usuario creado" });
+    const token = generateToken(user);
 
-  } catch {
-    res.status(500).json({ message: "Error del servidor" });
+    res.status(201).json({
+      message: 'Cuenta creada correctamente',
+      user: user.toSafeObject(),
+      token
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al crear la cuenta' });
   }
 };
 
-// LOGIN
-export const login = async (req, res) => {
+// Login
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email y contraseña son obligatorios' });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Usuario no existe" });
+      return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
     }
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(400).json({ message: "Contraseña incorrecta" });
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
     }
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const token = generateToken(user);
 
     res.json({
-      token,
-      user: {
-        name: user.name,
-        email: user.email
-      }
+      message: 'Inicio de sesión exitoso',
+      user: user.toSafeObject(),
+      token
     });
 
-  } catch {
-    res.status(500).json({ message: "Error del servidor" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al iniciar sesión' });
   }
+};
+
+module.exports = {
+  register,
+  login
 };
