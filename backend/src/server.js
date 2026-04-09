@@ -1,3 +1,4 @@
+// src/server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -11,18 +12,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ruta de prueba
+// Importar rutas (solo si existen)
+let authRoutes;
+try {
+  authRoutes = require('./routes/authRoutes');
+} catch (err) {
+  console.log("⚠️  Archivo authRoutes.js aún no existe. Se creará después.");
+}
+
+// Rutas
+if (authRoutes) {
+  app.use('/api/auth', authRoutes);
+}
+
+// Ruta de health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
-    message: 'Backend de FilmScript funcionando correctamente 🚀',
+    message: 'Backend de FilmScript funcionando correctamente 🎥',
     database: 'FilmScript',
     timestamp: new Date().toISOString()
   });
 });
 
 app.get('/', (req, res) => {
-  res.send('¡Bienvenido al Backend de FilmScript! 🎥');
+  res.send('¡Bienvenido al Backend de FilmScript! 🎬');
 });
 
 // Conexión a MongoDB
@@ -44,7 +58,13 @@ const startServer = async () => {
 
   app.listen(PORT, () => {
     console.log(`🚀 Servidor FilmScript corriendo en http://localhost:${PORT}`);
-    console.log(`📡 Prueba: http://localhost:${PORT}/api/health`);
+    console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+    
+    if (authRoutes) {
+      console.log(`🔐 Rutas de auth disponibles:`);
+      console.log(`   POST /api/auth/register`);
+      console.log(`   POST /api/auth/login`);
+    }
   });
 };
 
