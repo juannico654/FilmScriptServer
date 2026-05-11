@@ -46,13 +46,13 @@ export default function Inicio({ onEdit }) {
         ) : projects.length === 0 ? (
           <div className="empty-state">
             <button className="btn-gold sm" onClick={() => onEdit("Sin título", null)}>
-              ＋ Nuevo guión
+              ＋ Iniciar nuevo guión
             </button>
           </div>
         ) : (
           projects.slice(0, 3).map(p => (
             <div className="proj-row" key={p.id} onClick={() => onEdit(p.name, null)}>
-              <div className="proj-ico">📁</div>
+              <div className="proj-ico"></div>
               <div className="proj-inf">
                 <div className="proj-name">{p.name}</div>
                 <div className="proj-meta">{p.meta}</div>
