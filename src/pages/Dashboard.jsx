@@ -122,7 +122,6 @@ export default function Dashboard({ onLogout, usuario }) {
     notifEmail:   true,
     notifPush:    false,
     autoguardado: true,
-    formatoGuion: "Estándar Hollywood",
     privacidad:   "Solo equipo",
   });
   const [configFlash, setConfigFlash] = useState("");
@@ -205,7 +204,7 @@ export default function Dashboard({ onLogout, usuario }) {
       {/* ── TOPBAR ── */}
       <header className="topbar">
         <div className="topbar-brand">
-          <div className="brand-icon">F</div>
+          <div className="brand-icon">✦</div>
           <span className="brand-name">FILMSCRIPT</span>
         </div>
         <div className="topbar-mid">
@@ -572,37 +571,105 @@ export default function Dashboard({ onLogout, usuario }) {
         </div>
       )}
 
-      {/* ── MODAL INVITAR ── */}
-      {invModal && (
-        <div className="inv-overlay" onClick={e => e.target === e.currentTarget && setInvModal(false)}>
-          <div className="inv-modal">
-            <button className="inv-close" onClick={() => setInvModal(false)}>✕</button>
-            <div className="inv-title">Invitar colaborador</div>
-            <div className="inv-sub">El colaborador recibirá un correo con acceso al proyecto.</div>
-            <div style={{ marginBottom:12 }}>
-              <div style={{ fontSize:"11px", color:"var(--muted2)", marginBottom:5 }}>Correo electrónico</div>
-              <input className="inv-input" type="email" placeholder="colaborador@correo.com"
-                value={invEmail}
-                onChange={e => { setInvEmail(e.target.value); setInvErr(""); }}
-                onKeyDown={e => e.key === "Enter" && sendInvite()} autoFocus />
-              {invErr && <div style={{ fontSize:"11px", color:"var(--red)", marginTop:4 }}>⚠ {invErr}</div>}
-            </div>
-            <div style={{ marginBottom:20 }}>
-              <div style={{ fontSize:"11px", color:"var(--muted2)", marginBottom:5 }}>Rol</div>
-              <select className="inv-sel" value={invRole} onChange={e => setInvRole(e.target.value)}>
-                <option>Guionista</option>
-                <option>Director</option>
-                <option>Editor</option>
-                <option>Lector</option>
-              </select>
-            </div>
-            <button className="btn-gold" style={{ width:"100%", justifyContent:"center" }} onClick={sendInvite}>
-              {invFlash ? "✓ Invitación enviada" : "📨 Enviar invitación"}
-            </button>
-          </div>
+ {/* ── MODAL INVITAR ── */}
+{invModal && (
+  <div
+    className="invite-overlay"
+    onClick={(e) =>
+      e.target === e.currentTarget &&
+      setInvModal(false)
+    }
+  >
+    <div className="invite-modal">
+
+      <div className="invite-top">
+
+        <div>
+          <h2 className="invite-title">
+            Invitar colaborador
+          </h2>
+
+          <p className="invite-sub">
+            Agrega personas a tu proyecto.
+          </p>
         </div>
-      )}
+
+        <button
+          className="invite-close"
+          onClick={() => setInvModal(false)}
+        >
+          ✕
+        </button>
+
+      </div>
+
+      <div className="invite-form">
+
+        <div className="invite-group">
+
+          <label>
+            Correo electrónico
+          </label>
+
+          <input
+            className="invite-input"
+            type="email"
+            placeholder="colaborador@correo.com"
+            value={invEmail}
+            onChange={(e) => {
+              setInvEmail(e.target.value);
+              setInvErr("");
+            }}
+            onKeyDown={(e) =>
+              e.key === "Enter" &&
+              sendInvite()
+            }
+            autoFocus
+          />
+
+          {invErr && (
+            <div className="invite-error">
+              ⚠ {invErr}
+            </div>
+          )}
+
+        </div>
+
+        <div className="invite-group">
+
+          <label>
+            Rol
+          </label>
+
+          <select
+            className="invite-select"
+            value={invRole}
+            onChange={(e) =>
+              setInvRole(e.target.value)
+            }
+          >
+            <option>Guionista</option>
+            <option>Director</option>
+            <option>Editor</option>
+            <option>Lector</option>
+          </select>
+
+        </div>
+
+        <button
+          className="invite-btn"
+          onClick={sendInvite}
+        >
+          {invFlash
+            ? "✓ Invitación enviada"
+            : "📨 Enviar invitación"}
+        </button>
+
+      </div>
 
     </div>
+  </div>
+)}
+</div>
   );
 }
