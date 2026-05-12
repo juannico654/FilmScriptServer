@@ -115,10 +115,7 @@ export default function Escenas({ projects = [] }) {
         <div className="empty-state">Cargando escenas…</div>
       ) : list.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🎬</div>
-          <div className="empty-title">Sin escenas todavía</div>
-          <div className="empty-sub">Agrega la primera escena de tu guión.</div>
-          <button className="btn-gold sm" onClick={openNew}>＋ Nueva escena</button>
+          <div className="empty-sub">Comienza creando la primera escena.</div>
         </div>
       ) : (
         <table className="stbl">
