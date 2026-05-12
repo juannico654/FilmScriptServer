@@ -8,14 +8,13 @@ import Personajes  from "./Personajes";
 import Comentarios from "./Comentarios";
 import Versiones   from "./Versiones";
 import Editor      from "./Editor";
-
 const NAV = [
-  { icon: "🏠", label: "Inicio"      },
-  { icon: "📁", label: "Proyectos"   },
-  { icon: "🎭", label: "Escenas"     },
-  { icon: "💬", label: "Comentarios" },
-  { icon: "👤", label: "Personajes"  },
-  { icon: "📋", label: "Versiones"   },
+  { icon: "⌂", label: "Inicio"       },
+  { icon: "⌘", label: "Proyectos"   },
+  { icon: "▷", label: "Escenas"     },
+  { icon: "✉", label: "Comentarios" },
+  { icon: "◎", label: "Personajes"  },
+  { icon: "⎘", label: "Versiones"   },
 ];
 
 function useOutsideClick(ref, callback) {
@@ -218,11 +217,11 @@ export default function Dashboard({ onLogout, usuario }) {
 
           {/* Notificaciones */}
           <div style={{ position: "relative" }} ref={notifsRef}>
-            <div className="t-icon" style={{ position: "relative", cursor: "pointer" }}
+            <div className="t-icon" style={{ position: "relative", cursor: "pointer",color: "#e9d203"}}
               onClick={() => { setShowNotifs(p => !p); setShowSearch(false); setShowAvatar(false); }}>
-              🔔
+              🕭
               {unreadCount > 0 && (
-                <span style={{ position:"absolute", top:"-4px", right:"-4px", background:"var(--gold,#c9a84c)", color:"#000", borderRadius:"50%", fontSize:"10px", fontWeight:700, width:"16px", height:"16px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ position:"absolute", top:"-4px", right:"-px", background:"var(--gold,#c9a84c)", color:"#000000", borderRadius:"50%", fontSize:"10px", fontWeight:700, width:"16px", height:"16px", display:"flex", alignItems:"center", justifyContent:"center" }}>
                   {unreadCount}
                 </span>
               )}
@@ -260,8 +259,8 @@ export default function Dashboard({ onLogout, usuario }) {
 
           {/* Búsqueda */}
           <div style={{ position:"relative" }} ref={searchRef}>
-            <div className="t-icon" style={{ cursor:"pointer" }}
-              onClick={() => { openSearch(); setShowNotifs(false); setShowAvatar(false); }}>🔍</div>
+            <div className="t-icon" style={{ cursor:"pointer",color:"#e9d203" }}
+              onClick={() => { openSearch(); setShowNotifs(false); setShowAvatar(false); }}>⌕</div>
             {showSearch && (
               <div style={{ position:"absolute", top:"calc(100% + 10px)", right:0, background:"var(--card-bg,#1a1a2e)", border:"1px solid var(--border,#2a2a3e)", borderRadius:"10px", width:"280px", zIndex:999, boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
                 <div style={{ padding:"10px 12px", borderBottom:"1px solid var(--border,#2a2a3e)" }}>
@@ -298,7 +297,7 @@ export default function Dashboard({ onLogout, usuario }) {
                         style={{ padding:"7px 0", cursor:"pointer", fontSize:"13px", color:"var(--text,#e0e0e0)", display:"flex", alignItems:"center", gap:8 }}
                         onMouseEnter={e => e.currentTarget.style.color="var(--gold,#c9a84c)"}
                         onMouseLeave={e => e.currentTarget.style.color="var(--text,#e0e0e0)"}>
-                        {s==="Proyectos"?"📁":s==="Escenas"?"🎭":"👤"} {s}
+                        {s==="Proyectos"?"⌘ ":s==="Escenas"?"▷ ":"◎ "} {s}
                       </div>
                     ))}
                   </div>
@@ -320,9 +319,9 @@ export default function Dashboard({ onLogout, usuario }) {
                   <div style={{ fontSize:"11px", color:"var(--muted,#888)", marginTop:2 }}>{usuario?.email || ""}</div>
                 </div>
                 {[
-                  { icon:"👤", label:"Mi perfil",     action:() => { setShowPerfil(true); setShowAvatar(false); } },
-                  { icon:"⚙️", label:"Configuración", action:() => { setShowConfig(true); setShowAvatar(false); } },
-                  { icon:"❓", label:"Ayuda",          action:() => { setShowAyuda(true);  setShowAvatar(false); } },
+                  { label:"Mi perfil",     action:() => { setShowPerfil(true); setShowAvatar(false); } },
+                  { label:"Configuración", action:() => { setShowConfig(true); setShowAvatar(false); } },
+                  { label:"Ayuda",          action:() => { setShowAyuda(true);  setShowAvatar(false); } },
                 ].map(item => (
                   <div key={item.label} onClick={item.action}
                     style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", cursor:"pointer", fontSize:"13px", color:"var(--text,#e0e0e0)" }}
@@ -442,7 +441,7 @@ export default function Dashboard({ onLogout, usuario }) {
         <div style={modalOverlay} onClick={e => e.target === e.currentTarget && setShowPerfil(false)}>
           <div style={modalBox}>
             <div style={modalHead}>
-              <span style={modalTitle}>👤 Mi perfil</span>
+              <span style={modalTitle}> Mi perfil</span>
               <button style={closeBtn} onClick={() => setShowPerfil(false)}>✕</button>
             </div>
             <div style={{ padding:"22px" }}>
@@ -496,14 +495,14 @@ export default function Dashboard({ onLogout, usuario }) {
         <div style={modalOverlay} onClick={e => e.target === e.currentTarget && setShowConfig(false)}>
           <div style={modalBox}>
             <div style={modalHead}>
-              <span style={modalTitle}>⚙️ Configuración</span>
+              <span style={modalTitle}>Configuración</span>
               <button style={closeBtn} onClick={() => setShowConfig(false)}>✕</button>
             </div>
             <div style={{ padding:"22px" }}>
               {[
-                { label:"Idioma",            key:"idioma",       opts:["Español","English","Français","Português"] },
-                { label:"Formato de guion",  key:"formatoGuion", opts:["Estándar Hollywood","Europeo","Documental","Serie TV"] },
+
                 { label:"Privacidad",        key:"privacidad",   opts:["Solo yo","Solo equipo","Público"] },
+                
               ].map(f => (
                 <div key={f.key} style={{ marginBottom:16 }}>
                   <label style={fieldLabel}>{f.label}</label>
