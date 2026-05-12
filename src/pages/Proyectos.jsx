@@ -47,14 +47,8 @@ export default function Proyectos({ onEdit }) {
         <div className="empty-state">Cargando proyectos…</div>
       ) : list.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">📁</div>
-          <div className="empty-title">
-            {filter === "Todos" ? "Sin proyectos todavía" : `Sin proyectos en "${filter}"`}
-          </div>
-          <div className="empty-sub">Crea tu primer proyecto para empezar.</div>
-          <button className="btn-gold sm" onClick={() => onEdit("Sin título", null)}>
-            ＋ Nuevo proyecto
-          </button>
+          <div className="empty-icon"></div>
+          <div className="empty-sub">Inicia tu primer proyecto ahora.</div>
         </div>
       ) : (
         <div className="proj-list">
