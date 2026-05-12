@@ -1,659 +1,1596 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback
+} from "react";
+
 import "../styles/Editor.css";
-import { Document, Packer, Paragraph, TextRun } from "docx";
+
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun
+} from "docx";
+
 import { saveAs } from "file-saver";
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const TRANSITIONS = [
-  "CORTE A:",
-  "FUNDIDO A:",
-  "FUNDIDO A NEGRO:",
-  "ENCADENADO A:",
-  "IRIS A:",
-  "DISOLVENCIA A:",
-  "SALTO DE CORTE:",
-  "CORTE SECO:",
-  "SMASH CORTE A:",
-];
-
-const MOMENTOS = ["DÍA", "NOCHE", "AMANECER", "ATARDECER", "CONTINUO", "MÁS TARDE"];
-const TIPOS    = ["INT.", "EXT.", "INT./EXT."];
+/* ======================================================== */
+/* CONSTANTS */
+/* ======================================================== */
 
 const LABELS = {
-  credits:    "créditos",
-  scene:      "escena",
-  action:     "acción",
-  char:       "personaje",
-  dialog:     "diálogo",
-  paren:      "(nota)",
-  transition: "transición",
+  scene: "escena",
+  action: "acción",
+  char: "personaje",
+  dialog: "diálogo",
+  paren: "nota",
+  acotation: "acotación"
 };
 
-const STARTERS = {
-  blank: [],
-  "Piloto de Serie": [
-    { type: "scene",  val: "INT. SALA DE ESPERA — DÍA" },
-    { type: "action", val: "El piloto arranca aquí. La primera imagen que el espectador verá." },
-    { type: "char",   val: "PERSONAJE" },
-    { type: "dialog", val: "El primer diálogo del piloto." },
-  ],
-  "Corto / Cortometraje": [
-    { type: "scene",  val: "EXT. CALLE PRINCIPAL — NOCHE" },
-    { type: "action", val: "Una historia breve que comienza con una imagen poderosa." },
-    { type: "char",   val: "PROTAGONISTA" },
-    { type: "dialog", val: "Una sola frase que lo define todo." },
-  ],
-  "Película Largometraje": [
-    { type: "scene",  val: "INT. HABITACIÓN — AMANECER" },
-    { type: "action", val: "FUNDIDO DESDE NEGRO. El mundo del protagonista antes de que todo cambie." },
-    { type: "char",   val: "VOZ EN OFF" },
-    { type: "paren",  val: "(nostálgico)" },
-    { type: "dialog", val: "Dicen que hay momentos que lo cambian todo." },
-  ],
-  "Publicidad": [
-    { type: "scene",  val: "EXT. CIUDAD — DÍA" },
-    { type: "action", val: "Plano abierto. La marca aparece integrada en la vida cotidiana." },
-    { type: "char",   val: "LOCUTOR" },
-    { type: "dialog", val: "El mensaje principal del producto." },
-  ],
+const SLASH_COMMANDS = {
+  "/escena": "scene",
+  "/accion": "action",
+  "/personaje": "char",
+  "/dialogo": "dialog",
+  "/dialog": "dialog",
+  "/nota": "paren",
+  "/acotacion": "acotation"
 };
 
-// ─── CREDITS BLOCK ────────────────────────────────────────────────────────────
-function CreditsBlock({ data, onChange }) {
-  const set = (k, v) => onChange({ ...data, [k]: v });
+const BLOCK_ORDER = [
+  "action",
+  "char",
+  "dialog",
+  "paren",
+  "scene",
+  "acotation"
+];
 
-  return (
-    <div className="sp-credits-page">
-      <div className="sp-credits-inner">
-        <div className="sp-credits-label">PÁGINA DE CRÉDITOS</div>
-        <div className="sp-credits-field">
-          <label className="sp-credits-field-lbl">TÍTULO</label>
-          <input
-            className="sp-credits-title-inp"
-            value={data.title}
-            placeholder="Título del guion"
-            onChange={e => set("title", e.target.value)}
-          />
-        </div>
-        <div className="sp-credits-field">
-          <label className="sp-credits-field-lbl">ESCRITO POR</label>
-          <input
-            className="sp-credits-inp"
-            value={data.writer}
-            placeholder="Nombre del escritor"
-            onChange={e => set("writer", e.target.value)}
-          />
-        </div>
-        <div className="sp-credits-row2">
-          <div className="sp-credits-field">
-            <label className="sp-credits-field-lbl">FECHA</label>
-            <input
-              className="sp-credits-inp"
-              value={data.date}
-              placeholder="Mes, Año"
-              onChange={e => set("date", e.target.value)}
-            />
-          </div>
-          <div className="sp-credits-field">
-            <label className="sp-credits-field-lbl">VERSIÓN</label>
-            <input
-              className="sp-credits-inp"
-              value={data.version}
-              placeholder="Borrador 1"
-              onChange={e => set("version", e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="sp-credits-field">
-          <label className="sp-credits-field-lbl">CONTACTO</label>
-          <input
-            className="sp-credits-inp"
-            value={data.contact}
-            placeholder="Correo o teléfono de contacto"
-            onChange={e => set("contact", e.target.value)}
-          />
-        </div>
-        <div className="sp-credits-divider" />
-        <div className="sp-credits-footer">
-          Propiedad de {data.writer || "el autor"} · Todos los derechos reservados
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ======================================================== */
+/* BLOCK */
+/* ======================================================== */
 
-// ─── SCENE HEADING BLOCK ──────────────────────────────────────────────────────
-function SceneHeadingBlock({ val, onChange, onFocus, isActive }) {
-  const [tipo, setTipo] = useState(() => val.split(".")[0]?.trim() || "INT.");
-  const [lugar, setLugar] = useState(() => {
-    const m = val.match(/^(?:INT\.|EXT\.|INT\.\/EXT\.)\s+(.*?)\s*—\s*(.*?)$/i);
-    return m ? m[1] : "";
-  });
-  const [momento, setMomento] = useState(() => {
-    const m = val.match(/—\s*(.+)$/);
-    return m ? m[1].trim() : "DÍA";
-  });
+function ScriptBlock({
+  block,
+  active,
+  onFocus,
+  onChange,
+  onKeyDown,
+  blockRef,
+  characterSuggestions,
+  onSelectCharacter
+}) {
+  const ref = useRef(null);
 
   useEffect(() => {
-    onChange(`${tipo} ${lugar} — ${momento}`);
-  }, [tipo, lugar, momento, onChange]);
+    if (!ref.current) return;
 
-  return (
-    <div className={`sblk sblk-scene ${isActive ? 'is-active' : ''}`} onClick={onFocus}>
-      <span className="sblk-lbl">escena</span>
-      <div className="sh-row">
-        <select className="sh-sel" value={tipo} onChange={e => setTipo(e.target.value)}>
-          {TIPOS.map(t => <option key={t}>{t}</option>)}
-        </select>
-        <input
-          className="sh-lugar"
-          value={lugar}
-          placeholder="LOCACIÓN"
-          onChange={e => setLugar(e.target.value.toUpperCase())}
-          onFocus={onFocus}
-        />
-        <span className="sh-dash">—</span>
-        <select className="sh-sel" value={momento} onChange={e => setMomento(e.target.value)}>
-          {MOMENTOS.map(m => <option key={m}>{m}</option>)}
-        </select>
-      </div>
-    </div>
-  );
-}
+    ref.current.style.height = "auto";
 
-// ─── TRANSITION BLOCK ─────────────────────────────────────────────────────────
-function TransitionBlock({ val, onChange, onFocus, isActive }) {
-  const [custom, setCustom] = useState(false);
-
-  return (
-    <div className={`sblk sblk-trans ${isActive ? 'is-active' : ''}`} onClick={onFocus}>
-      <span className="sblk-lbl">transición</span>
-      <div className="tr-row">
-        {!custom ? (
-          <select
-            className="tr-sel"
-            value={TRANSITIONS.includes(val) ? val : "custom"}
-            onChange={e => {
-              if (e.target.value === "custom") { setCustom(true); onChange(""); }
-              else onChange(e.target.value);
-            }}
-            onFocus={onFocus}
-          >
-            {TRANSITIONS.map(t => <option key={t} value={t}>{t}</option>)}
-            <option value="custom">Personalizada…</option>
-          </select>
-        ) : (
-          <>
-            <input
-              className="tr-inp"
-              value={val}
-              placeholder="Escribe la transición…"
-              onChange={e => onChange(e.target.value.toUpperCase())}
-              onFocus={onFocus}
-              autoFocus
-            />
-            <button className="tr-preset-btn" onClick={() => setCustom(false)}>↩ Presets</button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── GENERIC BLOCK ────────────────────────────────────────────────────────────
-function ScriptBlock({ id, type, val, onChange, onKeyDown, onFocus, isActive, blockRef }) {
-  const taRef = useRef(null);
+    ref.current.style.height =
+      Math.min(ref.current.scrollHeight, 800) + "px";
+  }, [block.val]);
 
   useEffect(() => {
-    if (taRef.current) {
-      taRef.current.style.height = "auto";
-      taRef.current.style.height = Math.min(taRef.current.scrollHeight, 400) + "px";
+    if (active && ref.current) {
+      ref.current.focus();
+
+      const len = ref.current.value.length;
+
+      ref.current.setSelectionRange(len, len);
     }
-  }, [val]);
-
-  useEffect(() => {
-    if (isActive && taRef.current) {
-      taRef.current.focus();
-    }
-  }, [isActive]);
-
-  const placeholders = {
-    action: "Describe la acción. ¿Qué vemos? ¿Qué ocurre?",
-    char: "NOMBRE DEL PERSONAJE",
-    dialog: "El diálogo del personaje…",
-    paren: "(acotación)",
-  };
+  }, [active]);
 
   return (
-    <div className={`sblk sblk-${type} ${isActive ? 'is-active' : ''}`} ref={blockRef}>
-      <span className="sblk-lbl">{LABELS[type]}</span>
+    <div
+      className={`sblk sblk-${block.type} ${
+        active ? "is-active" : ""
+      }`}
+      ref={blockRef}
+    >
+      <div className="sblk-lbl">
+        {LABELS[block.type]}
+      </div>
+
       <textarea
-        ref={taRef}
+        ref={ref}
         rows={1}
-        value={val}
-        placeholder={placeholders[type] || ""}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={e => onKeyDown(e, id)}
-        onFocus={() => onFocus(id)}
-        data-block-id={id}
+        spellCheck={false}
+        value={block.val}
+        placeholder={`Escribe ${LABELS[block.type]}...`}
         className="script-textarea"
+        onFocus={() => onFocus(block.id)}
+        onChange={(e) =>
+          onChange(block.id, e.target.value)
+        }
+        onKeyDown={(e) =>
+          onKeyDown(e, block)
+        }
       />
+
+      {block.type === "char" &&
+        characterSuggestions.length > 0 && (
+          <div className="ed-autocomplete">
+            {characterSuggestions.map((name) => (
+              <div
+                key={name}
+                className="ed-autocomplete-item"
+                onMouseDown={() =>
+                  onSelectCharacter(
+                    block.id,
+                    name
+                  )
+                }
+              >
+                {name}
+              </div>
+            ))}
+          </div>
+        )}
     </div>
   );
 }
 
-// ─── MAIN EDITOR ──────────────────────────────────────────────────────────────
-export default function Editor({ initTitle, initTemplate, onBack }) {
-  const key = initTemplate || "blank";
-  const starter = STARTERS[key] || [];
+/* ======================================================== */
+/* EDITOR */
+/* ======================================================== */
 
-  const initCredits = {
-    title: initTitle || "Sin título",
-    writer: "",
-    date: new Date().toLocaleDateString("es-ES", { month: "long", year: "numeric" }),
-    version: "Borrador 1",
-    contact: "",
+export default function Editor({
+  initTitle = "Sin título",
+  initTemplate,
+  onBack
+}) {
+
+  /* ==================================================== */
+  /* STATE */
+  /* ==================================================== */
+
+  const [blocks, setBlocks] = useState([
+    {
+      id:1,
+      type:"scene",
+      val:"INT. APARTAMENTO — NOCHE"
+    },
+    {
+      id:2,
+      type:"action",
+      val:"La lluvia golpea las ventanas."
+    }
+  ]);
+
+  const [nextId, setNextId] = useState(3);
+
+  const [activeId, setActiveId] =
+    useState(1);
+
+  const [showCredits, setShowCredits] =
+    useState(true);
+
+  const [zenMode, setZenMode] =
+    useState(false);
+
+  const [paperMode, setPaperMode] =
+    useState(false);
+
+  const [leftCollapsed, setLeftCollapsed] =
+    useState(false);
+
+  const [rightCollapsed, setRightCollapsed] =
+    useState(false);
+
+  const [saved, setSaved] =
+    useState(false);
+
+  const [rightTab, setRightTab] =
+    useState("stats");
+
+  const [history, setHistory] =
+    useState([]);
+
+  const [future, setFuture] =
+    useState([]);
+
+  const [credits, setCredits] =
+    useState({
+      title:initTitle,
+      writer:"",
+      version:"Borrador 1",
+      date:new Date().toLocaleDateString(),
+      contact:""
+    });
+
+  const dragId = useRef(null);
+
+  const refs = useRef({});
+
+  /* ==================================================== */
+  /* HISTORY */
+  /* ==================================================== */
+
+  const snapshot = useCallback(() => {
+
+    setHistory((prev) => [
+      ...prev.slice(-60),
+      JSON.stringify(blocks)
+    ]);
+
+    setFuture([]);
+
+  }, [blocks]);
+
+  const undo = useCallback(() => {
+
+    if (!history.length) return;
+
+    const previous =
+      history[history.length - 1];
+
+    setFuture((f) => [
+      JSON.stringify(blocks),
+      ...f
+    ]);
+
+    setBlocks(JSON.parse(previous));
+
+    setHistory((h) =>
+      h.slice(0, -1)
+    );
+
+  }, [history, blocks]);
+
+  const redo = useCallback(() => {
+
+    if (!future.length) return;
+
+    const next = future[0];
+
+    setHistory((h) => [
+      ...h,
+      JSON.stringify(blocks)
+    ]);
+
+    setBlocks(JSON.parse(next));
+
+    setFuture((f) =>
+      f.slice(1)
+    );
+
+  }, [future, blocks]);
+
+  /* ==================================================== */
+  /* DERIVED */
+  /* ==================================================== */
+
+  const scenes = useMemo(() => {
+    return blocks.filter(
+      (b) => b.type === "scene"
+    );
+  }, [blocks]);
+
+  const wordCount = useMemo(() => {
+
+    return blocks.reduce((acc, block) => {
+
+      return (
+        acc +
+        block.val
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length
+      );
+
+    }, 0);
+
+  }, [blocks]);
+
+  const characterNames = useMemo(() => {
+
+    return [
+      ...new Set(
+        blocks
+          .filter((b) =>
+            b.type === "char"
+          )
+          .map((b) =>
+            b.val.toUpperCase()
+          )
+          .filter(Boolean)
+      )
+    ];
+
+  }, [blocks]);
+
+  const activeBlock = useMemo(() => {
+
+    return blocks.find(
+      (b) => b.id === activeId
+    );
+
+  }, [blocks, activeId]);
+
+  /* ==================================================== */
+  /* HELPERS */
+  /* ==================================================== */
+
+  const focusBlock = (id) => {
+
+    setTimeout(() => {
+      setActiveId(id);
+    }, 10);
+
   };
 
-  const [credits, setCredits] = useState(initCredits);
-  const [blocks, setBlocks] = useState(() =>
-    starter.map((b, i) => ({ id: i, type: b.type, val: b.val }))
-  );
-  const [nextId, setNextId] = useState(starter.length);
-  const [saved, setSaved] = useState(false);
-  const [activeId, setActiveId] = useState(null);
-  const [cursorPos, setCursorPos] = useState({});
+  const getNextType = (type) => {
 
-  const blockRefs = useRef({});
-  const containerRef = useRef(null);
+    switch (type) {
 
-  const sceneBlocks = useMemo(() => blocks.filter(b => b.type === "scene"), [blocks]);
-  const wordCount = useMemo(() => 
-    blocks.reduce((a, b) => a + b.val.trim().split(/\s+/).filter(Boolean).length, 0), 
-    [blocks]
-  );
+      case "scene":
+        return "action";
 
-  const updateVal = useCallback((id, val) =>
-    setBlocks(prev => prev.map(b => b.id === id ? { ...b, val } : b)), []);
+      case "action":
+        return "action";
 
-  const addBlock = useCallback((type, afterId = null, focus = true) => {
-    const newBlock = { id: nextId, type, val: type === "transition" ? "CORTE A:" : "" };
-    setNextId(n => n + 1);
-    
-    setBlocks(prev => {
-      if (afterId === null) {
+      case "char":
+        return "dialog";
+
+      case "dialog":
+        return "char";
+
+      case "paren":
+        return "dialog";
+
+      case "acotation":
+        return "scene";
+
+      default:
+        return "action";
+    }
+  };
+
+  /* ==================================================== */
+  /* CRUD */
+  /* ==================================================== */
+
+  const updateBlock = (id, val) => {
+
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.id === id
+          ? { ...b, val }
+          : b
+      )
+    );
+
+  };
+
+  const addBlock = (
+    type,
+    afterId = null
+  ) => {
+
+    snapshot();
+
+    const newBlock = {
+      id:nextId,
+      type,
+      val:
+        type === "acotation"
+          ? "CORTE A:"
+          : ""
+    };
+
+    setNextId((n) => n + 1);
+
+    setBlocks((prev) => {
+
+      if (afterId == null) {
         return [...prev, newBlock];
-      } else {
-        const idx = prev.findIndex(b => b.id === afterId);
-        const next = [...prev];
-        next.splice(idx + 1, 0, newBlock);
-        return next;
       }
+
+      const idx =
+        prev.findIndex(
+          (b) => b.id === afterId
+        );
+
+      const copy = [...prev];
+
+      copy.splice(idx + 1, 0, newBlock);
+
+      return copy;
+
     });
-    
-    if (focus) {
-      setTimeout(() => {
-        setActiveId(newBlock.id);
-        if (blockRefs.current[newBlock.id]?.querySelector('textarea, input, select')) {
-          const el = blockRefs.current[newBlock.id].querySelector('textarea, input, select');
-          el.focus();
-          if (el.setSelectionRange && type !== "scene" && type !== "transition") {
-            el.setSelectionRange(el.value.length, el.value.length);
-          }
-        }
-      }, 10);
+
+    focusBlock(newBlock.id);
+  };
+
+  const removeBlock = (id) => {
+
+    if (blocks.length <= 1) return;
+
+    snapshot();
+
+    const currentIndex =
+      blocks.findIndex(
+        (b) => b.id === id
+      );
+
+    const nextFocus =
+      blocks[currentIndex - 1] ||
+      blocks[currentIndex + 1];
+
+    setBlocks((prev) =>
+      prev.filter((b) => b.id !== id)
+    );
+
+    if (nextFocus) {
+      focusBlock(nextFocus.id);
     }
-  }, [nextId]);
+  };
 
-  const removeBlock = useCallback((id) => {
-    setBlocks(prev => {
-      const idx = prev.findIndex(b => b.id === id);
-      const newBlocks = prev.filter(b => b.id !== id);
-      
-      if (activeId === id && newBlocks.length > 0) {
-        const nextActive = newBlocks[Math.max(0, idx - 1)];
-        setTimeout(() => setActiveId(nextActive.id), 10);
-      }
-      return newBlocks;
-    });
-  }, [activeId]);
+  /* ==================================================== */
+  /* NAVIGATION */
+  /* ==================================================== */
 
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const navigateBlock = (
+    currentId,
+    direction
+  ) => {
 
-  const getBlockIndex = useCallback((id) => blocks.findIndex(b => b.id === id), [blocks]);
-  
-  const focusBlock = useCallback((id, selectAll = false) => {
-    setActiveId(id);
-    setTimeout(() => {
-      const block = blockRefs.current[id];
-      if (block) {
-        const el = block.querySelector('textarea, input, select');
-        if (el) {
-          el.focus();
-          if (selectAll && el.select) el.select();
-          else if (cursorPos[id] && el.setSelectionRange) {
-            el.setSelectionRange(cursorPos[id], cursorPos[id]);
-          }
-        }
-      }
-    }, 10);
-  }, [cursorPos]);
+    const currentIndex =
+      blocks.findIndex(
+        (b) => b.id === currentId
+      );
 
-  const navigateBlocks = useCallback((direction) => {
-    if (activeId === null) return;
-    const idx = getBlockIndex(activeId);
-    if (idx === -1) return;
-    
-    const nextIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (nextIdx >= 0 && nextIdx < blocks.length) {
-      focusBlock(blocks[nextIdx].id);
-    }
-  }, [activeId, blocks, getBlockIndex, focusBlock]);
+    const target =
+      blocks[currentIndex + direction];
 
-  const handleKeyDown = useCallback((e, blockId) => {
-    const block = blocks.find(b => b.id === blockId);
-    if (!block) return;
+    if (!target) return;
 
-    if (e.key === "Enter" && !e.shiftKey) {
+    focusBlock(target.id);
+  };
+
+  /* ==================================================== */
+  /* KEYBOARD */
+  /* ==================================================== */
+
+  const handleKeyDown = (
+    e,
+    block
+  ) => {
+
+    /* slash commands */
+
+    if (
+      e.key === " " &&
+      SLASH_COMMANDS[
+        block.val.trim()
+      ]
+    ) {
+
       e.preventDefault();
-      const nextType = block.type === "char" ? "dialog" :
-                       block.type === "dialog" ? "char" :
-                       block.type === "paren" ? "dialog" : "action";
-      addBlock(nextType, blockId);
+
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? {
+                ...b,
+                type:
+                  SLASH_COMMANDS[
+                    block.val.trim()
+                  ],
+                val:""
+              }
+            : b
+        )
+      );
+
       return;
     }
 
-    if (e.key === "ArrowUp") {
+    /* enter */
+
+    if (
+      e.key === "Enter" &&
+      !e.shiftKey
+    ) {
+
       e.preventDefault();
-      navigateBlocks('up');
+
+      const nextType =
+        getNextType(block.type);
+
+      addBlock(nextType, block.id);
+
       return;
     }
 
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      navigateBlocks('down');
-      return;
-    }
-
-    if (e.key === "Backspace") {
-      const target = e.target;
-      if (target.selectionStart === 0 && target.selectionEnd === 0) {
-        e.preventDefault();
-        const idx = getBlockIndex(blockId);
-        if (idx > 0) {
-          const prevBlock = blocks[idx - 1];
-          updateVal(prevBlock.id, prevBlock.val + (block.type === "dialog" || block.type === "paren" ? "\n" : " ") + block.val);
-          removeBlock(blockId);
-          setTimeout(() => focusBlock(prevBlock.id, false), 10);
-        } else {
-          removeBlock(blockId);
-        }
-      }
-      return;
-    }
-
-    if (e.key === "Delete" && !e.target.value && block.type !== "scene" && block.type !== "transition") {
-      e.preventDefault();
-      removeBlock(blockId);
-      return;
-    }
+    /* tab cycle */
 
     if (e.key === "Tab") {
+
       e.preventDefault();
-      const typeOrder = ["action", "char", "dialog", "paren", "scene", "transition"];
-      const currentIdx = typeOrder.indexOf(block.type);
-      const nextType = typeOrder[(currentIdx + 1) % typeOrder.length];
-      updateVal(blockId, block.val);
-      setBlocks(prev => prev.map(b => b.id === blockId ? { ...b, type: nextType } : b));
-      setTimeout(() => focusBlock(blockId), 10);
+
+      const nextType =
+        BLOCK_ORDER[
+          (
+            BLOCK_ORDER.indexOf(
+              block.type
+            ) + 1
+          ) %
+            BLOCK_ORDER.length
+        ];
+
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? {
+                ...b,
+                type:nextType
+              }
+            : b
+        )
+      );
+
       return;
     }
 
-    if (e.key === "Escape") {
-      e.target.blur();
+    /* backspace */
+
+    if (
+      e.key === "Backspace" &&
+      !block.val
+    ) {
+
+      e.preventDefault();
+
+      removeBlock(block.id);
+
       return;
     }
-  }, [blocks, addBlock, navigateBlocks, getBlockIndex, updateVal, removeBlock, focusBlock]);
 
-  const handleCursorChange = useCallback((blockId, e) => {
-    setCursorPos(prev => ({ ...prev, [blockId]: e.target.selectionStart }));
-  }, []);
+    /* arrows */
+
+    if (
+      e.key === "ArrowUp" &&
+      e.metaKey
+    ) {
+
+      e.preventDefault();
+
+      navigateBlock(block.id, -1);
+
+      return;
+    }
+
+    if (
+      e.key === "ArrowDown" &&
+      e.metaKey
+    ) {
+
+      e.preventDefault();
+
+      navigateBlock(block.id, 1);
+
+      return;
+    }
+
+    /* undo redo */
+
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      e.key.toLowerCase() === "z"
+    ) {
+
+      e.preventDefault();
+
+      if (e.shiftKey) redo();
+      else undo();
+
+      return;
+    }
+
+    /* save */
+
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      e.key.toLowerCase() === "s"
+    ) {
+
+      e.preventDefault();
+
+      setSaved(true);
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 1600);
+
+      return;
+    }
+  };
+
+  /* ==================================================== */
+  /* SCENES DND */
+  /* ==================================================== */
+
+  const reorderScenes = (
+    fromId,
+    toId
+  ) => {
+
+    const fromIndex =
+      blocks.findIndex(
+        (b) => b.id === fromId
+      );
+
+    const toIndex =
+      blocks.findIndex(
+        (b) => b.id === toId
+      );
+
+    if (
+      fromIndex === -1 ||
+      toIndex === -1
+    ) {
+      return;
+    }
+
+    snapshot();
+
+    const copy = [...blocks];
+
+    const [removed] =
+      copy.splice(fromIndex, 1);
+
+    copy.splice(
+      toIndex,
+      0,
+      removed
+    );
+
+    setBlocks(copy);
+  };
+
+  /* ==================================================== */
+  /* EXPORTS */
+  /* ==================================================== */
 
   const exportTXT = () => {
-    let content = "";
-    content += `${credits.title}\n`;
-    content += `Escrito por: ${credits.writer}\n`;
-    content += `${credits.date} — ${credits.version}\n`;
-    content += `Contacto: ${credits.contact}\n\n`;
-    content += "---------------------------------\n\n";
-    blocks.forEach(b => {
-      if (b.type === "scene") {
-        content += `\n${b.val}\n`;
-      } else if (b.type === "char") {
-        content += `\n${b.val.toUpperCase()}\n`;
-      } else if (b.type === "dialog") {
-        content += `${b.val}\n`;
-      } else if (b.type === "transition") {
-        content += `\n${b.val}\n`;
-      } else {
-        content += `${b.val}\n`;
-      }
+
+    let content =
+      `${credits.title}\n\n`;
+
+    blocks.forEach((b) => {
+      content += `${b.val}\n\n`;
     });
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${credits.title || "guion"}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const blob = new Blob(
+      [content],
+      {
+        type:
+          "text/plain;charset=utf-8"
+      }
+    );
+
+    saveAs(
+      blob,
+      `${credits.title}.txt`
+    );
   };
 
   const exportDOCX = async () => {
-    const children = [];
-    children.push(
-      new Paragraph({
-        children: [new TextRun({ text: credits.title, bold: true, size: 32 })],
-        spacing: { after: 300 },
-      })
-    );
-    children.push(new Paragraph(`Escrito por: ${credits.writer}`));
-    children.push(new Paragraph(`${credits.date} — ${credits.version}`));
-    children.push(new Paragraph(" "));
-    blocks.forEach(b => {
-      let text = b.val;
-      if (b.type === "char") text = text.toUpperCase();
-      if (b.type === "scene") text = text.toUpperCase();
-      children.push(
-        new Paragraph({
-          children: [new TextRun(text)],
-          spacing: { after: 200 },
-        })
-      );
+
+    const doc = new Document({
+      sections:[
+        {
+          children:[
+            new Paragraph({
+              children:[
+                new TextRun({
+                  text:credits.title,
+                  bold:true,
+                  size:36
+                })
+              ]
+            }),
+
+            ...blocks.map(
+              (b) =>
+                new Paragraph({
+                  children:[
+                    new TextRun({
+                      text:b.val
+                    })
+                  ],
+                  spacing:{
+                    after:220
+                  }
+                })
+            )
+          ]
+        }
+      ]
     });
-    const doc = new Document({ sections: [{ children }] });
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `${credits.title || "guion"}.docx`);
+
+    const blob =
+      await Packer.toBlob(doc);
+
+    saveAs(
+      blob,
+      `${credits.title}.docx`
+    );
   };
 
+  /* ==================================================== */
+  /* SHORTCUTS */
+  /* ==================================================== */
+
   useEffect(() => {
-    const handleGlobalKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-      if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        addBlock('action', activeId || (blocks[blocks.length - 1]?.id) || null);
+
+    const handler = (e) => {
+
+      const target =
+        e.target.tagName;
+
+      if (
+        target === "TEXTAREA" ||
+        target === "INPUT"
+      ) {
+        return;
+      }
+
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key === "1"
+      ) {
+        addBlock("scene");
+      }
+
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key === "2"
+      ) {
+        addBlock("action");
+      }
+
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key === "3"
+      ) {
+        addBlock("char");
       }
     };
-    window.addEventListener('keydown', handleGlobalKey);
-    return () => window.removeEventListener('keydown', handleGlobalKey);
-  }, [addBlock, activeId, blocks]);
 
-  useEffect(() => {
-    if (blocks.length > 0 && activeId === null) {
-      setActiveId(blocks[0].id);
-    }
-  }, [blocks, activeId]);
+    window.addEventListener(
+      "keydown",
+      handler
+    );
+
+    return () =>
+      window.removeEventListener(
+        "keydown",
+        handler
+      );
+
+  }, []);
+
+  /* ==================================================== */
+  /* RENDER */
+  /* ==================================================== */
 
   return (
-    <div className="editor-shell">
-      {/* ── LEFT: Scene navigator ─────────────────────────────── */}
-      <div className="ed-left">
-        <div className="ed-left-top">
-          <span className="ed-left-lbl">Escenas</span>
-          <button className="ed-plus" onClick={() => addBlock("scene")}>+</button>
-        </div>
-        <div className="ed-sc-item credits-item">
-          <div className="ed-sc-n">CR</div>
-          <div className="ed-sc-t">Créditos</div>
-        </div>
-        <div className="ed-sc-list">
-          {sceneBlocks.length === 0 && (
-            <p style={{ padding: "14px 10px", fontSize: "11px", color: "var(--muted)", textAlign: "center", lineHeight: 1.5 }}>
-              Sin escenas aún.<br />Pulsa + para agregar.
-            </p>
-          )}
-          {sceneBlocks.map((s, i) => (
-            <div key={s.id} className={`ed-sc-item ${activeId === s.id ? "on" : ""}`}
-              onClick={() => focusBlock(s.id)}>
-              <div className="ed-sc-n">ESC {String(i + 1).padStart(2, "0")}</div>
-              <div className="ed-sc-t">{s.val || "Sin título"}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div
+      className={[
+        "editor-shell",
 
-      {/* ── CENTER: Script page ────────────────────────────────── */}
-      <div className="ed-center">
+        zenMode
+          ? "zen-mode"
+          : "",
+
+        paperMode
+          ? "paper-mode"
+          : "",
+
+        leftCollapsed
+          ? "left-collapsed"
+          : "",
+
+        rightCollapsed
+          ? "right-collapsed"
+          : ""
+      ].join(" ")}
+    >
+
+      {/* LEFT */}
+
+      <aside
+        className={`ed-left ${
+          leftCollapsed
+            ? "collapsed"
+            : ""
+        }`}
+      >
+
+        <div className="ed-panel-header">
+
+          {!leftCollapsed && (
+            <div className="ed-panel-title">
+              Escenas
+            </div>
+          )}
+
+          <button
+            className="ed-icon-btn"
+            onClick={() =>
+              setLeftCollapsed(
+                (v) => !v
+              )
+            }
+          >
+            ☰
+          </button>
+
+        </div>
+
+        {!leftCollapsed && (
+
+          <div className="ed-sc-list">
+
+            {scenes.map(
+              (scene, index) => (
+
+                <div
+                  key={scene.id}
+                  draggable
+
+                  onDragStart={() => {
+                    dragId.current =
+                      scene.id;
+                  }}
+
+                  onDragOver={(e) =>
+                    e.preventDefault()
+                  }
+
+                  onDrop={() =>
+                    reorderScenes(
+                      dragId.current,
+                      scene.id
+                    )
+                  }
+
+                  onClick={() =>
+                    focusBlock(scene.id)
+                  }
+
+                  className={`ed-sc-item ${
+                    activeId === scene.id
+                      ? "on"
+                      : ""
+                  }`}
+                >
+
+                  <div className="ed-sc-top">
+
+                    <div className="ed-sc-n">
+                      ESC {index + 1}
+                    </div>
+
+                    <div className="ed-sc-page">
+                      p.
+                      {Math.ceil(
+                        (index + 1) * 1.4
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div className="ed-sc-t">
+                    {scene.val}
+                  </div>
+
+                </div>
+              )
+            )}
+
+          </div>
+        )}
+
+      </aside>
+
+      {/* CENTER */}
+
+      <main className="ed-center">
+
+        {/* TOOLBAR */}
+
         <div className="ed-toolbar">
-          <button className="ed-tb-btn" onClick={() => addBlock("scene")}>🎬 Escena</button>
-          <div className="ed-tb-sep" />
-          <button className="ed-tb-btn" onClick={() => addBlock("action")}>📝 Acción</button>
-          <button className="ed-tb-btn" onClick={() => addBlock("char")}>👤 Personaje</button>
-          <button className="ed-tb-btn" onClick={() => addBlock("dialog")}>💬 Diálogo</button>
-          <button className="ed-tb-btn" onClick={() => addBlock("paren")}>() Paréntesis</button>
-          <button className="ed-tb-btn" onClick={() => addBlock("transition")}>⏭ Transición</button>
-          <div className="ed-tb-sep" />
-          <button onClick={exportTXT}>📄 Exportar TXT</button>
-          <button onClick={exportDOCX}>📝 Descargar Word</button>
-          <button className="ed-tb-save" onClick={handleSave}>{saved ? "✓ Guardado" : "💾 Guardar"}</button>
-        </div>
-        <div className="ed-crumb">
-          <button onClick={onBack}>← Volver</button>
-          <span className="sep">/</span>
-          <span className="cur">{credits.title}</span>
-          {initTemplate && (
-            <><span className="sep">·</span>
-            <span style={{ color: "var(--muted)" }}>{initTemplate}</span></>
-          )}
-        </div>
-        <div className="ed-body" ref={containerRef}>
-          <CreditsBlock data={credits} onChange={setCredits} />
-          <div className="sp-page-break"><span>— página 1 —</span></div>
-          {blocks.map(b => (
-            <div key={b.id} className="sp-block-wrap" onClick={() => focusBlock(b.id)} ref={el => blockRefs.current[b.id] = el}>
-              {b.type === "scene" ? (
-                <SceneHeadingBlock val={b.val} onChange={val => updateVal(b.id, val)} onFocus={() => focusBlock(b.id)} isActive={activeId === b.id} />
-              ) : b.type === "transition" ? (
-                <TransitionBlock val={b.val} onChange={val => updateVal(b.id, val)} onFocus={() => focusBlock(b.id)} isActive={activeId === b.id} />
-              ) : (
-                <ScriptBlock
-                  id={b.id}
-                  type={b.type}
-                  val={b.val}
-                  onChange={val => updateVal(b.id, val)}
-                  onKeyDown={handleKeyDown}
-                  onFocus={focusBlock}
-                  isActive={activeId === b.id}
-                  blockRef={el => blockRefs.current[b.id] = el}
-                />
-              )}
-              <div className="sp-block-actions">
-                <button className="sp-bact" title="Eliminar bloque (Supr)" onClick={e => { e.stopPropagation(); removeBlock(b.id); }}>🗑</button>
-                <button className="sp-bact" title="Agregar acción abajo" onClick={e => { e.stopPropagation(); addBlock("action", b.id); }}>＋</button>
-              </div>
-            </div>
-          ))}
-          <div className="sp-quick-add">
-            {[
-              ["🎬", "scene", "Escena"], ["📝", "action", "Acción"], ["👤", "char", "Personaje"],
-              ["💬", "dialog", "Diálogo"], ["()", "paren", "Paréntesis"], ["⏭", "transition", "Transición"],
-            ].map(([ic, tp, lb]) => (
-              <button key={tp} className="sp-qa-btn" onClick={() => addBlock(tp)}>{ic} {lb}</button>
-            ))}
-          </div>
-        </div>
-        <div className="ed-status">
-          <div className="ed-status-dot" />
-          <span>{wordCount} palabras</span>
-          <span>·</span>
-          <span>{blocks.length} bloques</span>
-          <span>·</span>
-          <span>{sceneBlocks.length} escenas</span>
-          <span>·</span>
-          <span>~{Math.ceil(wordCount / 200) || 0} pág.</span>
-        </div>
-      </div>
 
-      {/* ── RIGHT: Properties panel ───────────────────────────── */}
-      <div className="ed-right">
-        <div className="ed-r-sec">
-          <button className="ed-back-btn" onClick={onBack}>← Volver al inicio</button>
-          <button className="ed-save-big" onClick={handleSave}>{saved ? "✓ Guardado" : "💾 Guardar guion"}</button>
-        </div>
-        <div className="ed-r-sec">
-          <div className="ed-r-ttl">Página de créditos</div>
-          {[
-            ["Título", "title", "text"], ["Escritor", "writer", "text"], ["Fecha", "date", "text"],
-            ["Versión", "version", "text"], ["Contacto", "contact", "text"],
-          ].map(([lbl, key, type]) => (
-            <div key={key} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: "11px", color: "var(--muted2)", marginBottom: 4 }}>{lbl}</div>
-              <input className="ed-inp" type={type} value={credits[key]} onChange={e => setCredits(c => ({ ...c, [key]: e.target.value }))} />
-            </div>
-          ))}
-        </div>
-        <div className="ed-r-sec">
-          <div className="ed-r-ttl">Propiedades</div>
-          <div style={{ fontSize: "11px", color: "var(--muted2)", marginBottom: 5 }}>Tipo</div>
-          <select className="ed-sel" defaultValue={initTemplate || "Largometraje"}>
-            <option>Largometraje</option><option>Cortometraje</option><option>Piloto de Serie</option>
-            <option>Publicidad</option><option>Otro</option>
-          </select>
-          <div style={{ fontSize: "11px", color: "var(--muted2)", marginBottom: 5, marginTop: 10 }}>Estado</div>
-          <select className="ed-sel">
-            <option>Borrador</option><option>En curso</option><option>Finalizado</option>
-          </select>
-        </div>
-        <div className="ed-r-sec">
-          <div className="ed-r-ttl">Estadísticas</div>
-          {[
-            ["Palabras", wordCount], ["Escenas", sceneBlocks.length],
-            ["Bloques", blocks.length], ["~Páginas", Math.ceil(wordCount / 250) || 0],
-          ].map(([l, v]) => (
-            <div className="ed-r-row" key={l}>
-              <span className="ed-r-lbl">{l}</span><span className="ed-r-val">{v}</span>
-            </div>
-          ))}
-        </div>
-        <div className="ed-r-sec">
-          <div className="ed-r-ttl">Insertar bloque</div>
-          <div className="fmt-grid">
-            {[
-              ["🎬", "scene", "Escena"], ["📝", "action", "Acción"], ["👤", "char", "Personaje"],
-              ["💬", "dialog", "Diálogo"], ["()", "paren", "Paréntesis"], ["⏭", "transition", "Transición"],
-            ].map(([ic, tp, lb]) => (
-              <button key={tp} className="fmt-btn" onClick={() => addBlock(tp)}>{ic} {lb}</button>
-            ))}
+          <div className="ed-toolbar-group">
+
+            <button
+              className="ed-tb-btn"
+              onClick={() =>
+                addBlock("scene")
+              }
+            >
+              🎬 Escena
+            </button>
+
+            <button
+              className="ed-tb-btn"
+              onClick={() =>
+                addBlock("action")
+              }
+            >
+              📝 Acción
+            </button>
+
+            <button
+              className="ed-tb-btn"
+              onClick={() =>
+                addBlock("char")
+              }
+            >
+              👤 Personaje
+            </button>
+
+            <button
+              className="ed-tb-btn"
+              onClick={() =>
+                addBlock("dialog")
+              }
+            >
+              💬 Diálogo
+            </button>
+
           </div>
-        </div>
-        <div className="ed-r-sec">
-          <div className="ed-r-ttl">Tipos de transición</div>
-          <div className="tr-ref-list">
-            {TRANSITIONS.map(t => (
-              <div key={t} className="tr-ref-item" onClick={() => addBlock("transition")}>{t}</div>
-            ))}
+
+          <div className="ed-toolbar-group">
+
+            <button
+              className={`ed-tb-btn ${
+                zenMode
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                setZenMode(
+                  (v) => !v
+                )
+              }
+            >
+              🧘 Zen
+            </button>
+
+            <button
+              className={`ed-tb-btn ${
+                paperMode
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                setPaperMode(
+                  (v) => !v
+                )
+              }
+            >
+              📄 Papel
+            </button>
+
+            <button
+              className={`ed-tb-btn ${
+                showCredits
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                setShowCredits(
+                  (v) => !v
+                )
+              }
+            >
+              🎞 Créditos
+            </button>
+
+            <button
+              className="ed-tb-btn"
+              onClick={() =>
+                setRightCollapsed(
+                  (v) => !v
+                )
+              }
+            >
+              📚 Inspector
+            </button>
+
           </div>
+
+          <div className="ed-toolbar-spacer" />
+
+          <button
+            className="ed-tb-btn"
+            onClick={undo}
+          >
+            ↶ Undo
+          </button>
+
+          <button
+            className="ed-tb-btn"
+            onClick={redo}
+          >
+            ↷ Redo
+          </button>
+
+          <button
+            className="ed-tb-btn"
+            onClick={exportTXT}
+          >
+            TXT
+          </button>
+
+          <button
+            className="ed-tb-btn"
+            onClick={exportDOCX}
+          >
+            DOCX
+          </button>
+
+          <button className="ed-tb-btn ed-tb-save">
+            {saved
+              ? "✓ Guardado"
+              : "💾 Guardar"}
+          </button>
+
         </div>
-      </div>
+
+        {/* BREADCRUMB */}
+
+        <div className="ed-crumb">
+
+          <button onClick={onBack}>
+            ← Volver
+          </button>
+
+          <span>/</span>
+
+          <span>
+            {credits.title}
+          </span>
+
+          {initTemplate && (
+            <>
+              <span>·</span>
+              <span>
+                {initTemplate}
+              </span>
+            </>
+          )}
+
+        </div>
+
+        {/* BODY */}
+
+        <div className="ed-body">
+
+          <div className="ed-page">
+
+            <div className="ed-page-paper">
+
+              {/* CREDITS */}
+
+              {showCredits && (
+
+                <div className="sp-credits-page">
+
+                  <div className="sp-credits-inner">
+
+                    <div className="sp-credits-label">
+                      PÁGINA DE CRÉDITOS
+                    </div>
+
+                    <div className="sp-credits-field">
+
+                      <label className="sp-credits-field-lbl">
+                        Título
+                      </label>
+
+                      <input
+                        className="sp-credits-title-inp"
+                        value={credits.title}
+                        onChange={(e) =>
+                          setCredits(
+                            (c) => ({
+                              ...c,
+                              title:
+                                e.target
+                                  .value
+                            })
+                          )
+                        }
+                      />
+
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* BLOCKS */}
+
+              {blocks.map((block) => {
+
+                const suggestions =
+                  block.type === "char"
+                    ? characterNames.filter(
+                        (c) =>
+                          c.startsWith(
+                            block.val.toUpperCase()
+                          ) &&
+                          c !==
+                            block.val.toUpperCase()
+                      )
+                    : [];
+
+                return (
+
+                  <div
+                    key={block.id}
+                    className="sp-block-wrap"
+                  >
+
+                    <ScriptBlock
+                      block={block}
+
+                      active={
+                        activeId ===
+                        block.id
+                      }
+
+                      blockRef={(el) =>
+                        (refs.current[
+                          block.id
+                        ] = el)
+                      }
+
+                      onFocus={
+                        setActiveId
+                      }
+
+                      onChange={
+                        updateBlock
+                      }
+
+                      onKeyDown={
+                        handleKeyDown
+                      }
+
+                      characterSuggestions={
+                        suggestions
+                      }
+
+                      onSelectCharacter={(
+                        id,
+                        value
+                      ) =>
+                        updateBlock(
+                          id,
+                          value
+                        )
+                      }
+                    />
+
+                    <div className="sp-block-actions">
+
+                      <button
+                        className="sp-bact"
+                        onClick={() =>
+                          addBlock(
+                            "action",
+                            block.id
+                          )
+                        }
+                      >
+                        ＋
+                      </button>
+
+                      <button
+                        className="sp-bact danger"
+                        onClick={() =>
+                          removeBlock(
+                            block.id
+                          )
+                        }
+                      >
+                        🗑
+                      </button>
+
+                    </div>
+
+                  </div>
+                );
+              })}
+
+              {/* QUICK ADD */}
+
+              <div className="sp-quick-add">
+
+                {[
+                  [
+                    "scene",
+                    "🎬 Escena"
+                  ],
+                  [
+                    "action",
+                    "📝 Acción"
+                  ],
+                  [
+                    "char",
+                    "👤 Personaje"
+                  ],
+                  [
+                    "dialog",
+                    "💬 Diálogo"
+                  ],
+                  [
+                    "paren",
+                    "() Nota"
+                  ],
+                  [
+                    "acotation",
+                    "⏭ Acotación"
+                  ]
+                ].map(
+                  ([type, label]) => (
+
+                    <button
+                      key={type}
+                      className="sp-qa-btn"
+                      onClick={() =>
+                        addBlock(type)
+                      }
+                    >
+                      {label}
+                    </button>
+                  )
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* STATUS */}
+
+        <div className="ed-status">
+
+          <div className="ed-status-dot" />
+
+          <span>
+            {wordCount} palabras
+          </span>
+
+          <span>·</span>
+
+          <span>
+            {blocks.length} bloques
+          </span>
+
+          <span>·</span>
+
+          <span>
+            {scenes.length} escenas
+          </span>
+
+          <span>·</span>
+
+          <span>
+            ~
+            {Math.ceil(
+              wordCount / 220
+            )}{" "}
+            pág.
+          </span>
+
+        </div>
+
+      </main>
+
+      {/* RIGHT */}
+
+      <aside
+        className={`ed-right ${
+          rightCollapsed
+            ? "collapsed"
+            : ""
+        }`}
+      >
+
+        <div className="ed-right-tabs">
+
+          {[
+            [
+              "inspector",
+              "Inspector"
+            ],
+            [
+              "characters",
+              "Personajes"
+            ],
+            [
+              "notes",
+              "Notas"
+            ],
+            [
+              "stats",
+              "Stats"
+            ]
+          ].map(
+            ([id, label]) => (
+
+              <button
+                key={id}
+                className={`ed-right-tab ${
+                  rightTab === id
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setRightTab(id)
+                }
+              >
+                {label}
+              </button>
+            )
+          )}
+
+        </div>
+
+        <div className="ed-right-content">
+
+          {/* STATS */}
+
+          {rightTab === "stats" && (
+
+            <div className="ed-r-sec">
+
+              <div className="ed-r-ttl">
+                Estadísticas
+              </div>
+
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">
+                  Palabras
+                </span>
+
+                <span className="ed-r-val">
+                  {wordCount}
+                </span>
+              </div>
+
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">
+                  Escenas
+                </span>
+
+                <span className="ed-r-val">
+                  {scenes.length}
+                </span>
+              </div>
+
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">
+                  Páginas aprox.
+                </span>
+
+                <span className="ed-r-val">
+                  {Math.ceil(
+                    wordCount / 220
+                  )}
+                </span>
+              </div>
+
+            </div>
+          )}
+
+          {/* CHARACTERS */}
+
+          {rightTab === "characters" && (
+
+            <div className="ed-r-sec">
+
+              <div className="ed-r-ttl">
+                Personajes
+              </div>
+
+              {characterNames.map(
+                (name) => (
+
+                  <div
+                    className="ed-r-row"
+                    key={name}
+                  >
+
+                    <span className="ed-r-lbl">
+                      {name}
+                    </span>
+
+                  </div>
+                )
+              )}
+
+            </div>
+          )}
+
+          {/* INSPECTOR */}
+
+          {rightTab === "inspector" && (
+
+            <>
+              <div className="ed-r-sec">
+
+                <div className="ed-r-ttl">
+                  Proyecto
+                </div>
+
+                <input
+                  className="ed-inp"
+                  value={credits.title}
+                  onChange={(e) =>
+                    setCredits(
+                      (c) => ({
+                        ...c,
+                        title:
+                          e.target
+                            .value
+                      })
+                    )
+                  }
+                />
+
+              </div>
+
+              <div className="ed-r-sec">
+
+                <div className="ed-r-ttl">
+                  Bloque activo
+                </div>
+
+                <div className="ed-r-row">
+
+                  <span className="ed-r-lbl">
+                    Tipo
+                  </span>
+
+                  <span className="ed-r-val">
+                    {activeBlock
+                      ? LABELS[
+                          activeBlock.type
+                        ]
+                      : "-"}
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div className="ed-r-sec">
+
+                <div className="ed-r-ttl">
+                  Insertar
+                </div>
+
+                <div className="fmt-grid">
+
+                  {[
+                    [
+                      "scene",
+                      "🎬 Escena"
+                    ],
+                    [
+                      "action",
+                      "📝 Acción"
+                    ],
+                    [
+                      "char",
+                      "👤 Personaje"
+                    ],
+                    [
+                      "dialog",
+                      "💬 Diálogo"
+                    ]
+                  ].map(
+                    ([type, label]) => (
+
+                      <button
+                        key={type}
+                        className="fmt-btn"
+                        onClick={() =>
+                          addBlock(type)
+                        }
+                      >
+                        {label}
+                      </button>
+                    )
+                  )}
+
+                </div>
+
+              </div>
+            </>
+          )}
+
+          {/* NOTES */}
+
+          {rightTab === "notes" && (
+
+            <div className="ed-r-sec">
+
+              <div className="ed-r-ttl">
+                Atajos
+              </div>
+
+              <div className="ed-r-row">
+
+                <span className="ed-r-lbl">
+                  Enter
+                </span>
+
+                <span className="ed-r-val">
+                  Nuevo bloque
+                </span>
+
+              </div>
+
+              <div className="ed-r-row">
+
+                <span className="ed-r-lbl">
+                  Tab
+                </span>
+
+                <span className="ed-r-val">
+                  Cambiar tipo
+                </span>
+
+              </div>
+
+              <div className="ed-r-row">
+
+                <span className="ed-r-lbl">
+                  Cmd/Ctrl + Z
+                </span>
+
+                <span className="ed-r-val">
+                  Undo
+                </span>
+
+              </div>
+
+              <div className="ed-r-row">
+
+                <span className="ed-r-lbl">
+                  /escena
+                </span>
+
+                <span className="ed-r-val">
+                  Slash command
+                </span>
+
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+      </aside>
+
     </div>
   );
 }
