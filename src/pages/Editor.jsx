@@ -388,10 +388,6 @@ export default function Editor({
   const [nextId,          setNextId]          = useState(3);
   const [activeId,        setActiveId]        = useState(1);
   const [showCredits,     setShowCredits]     = useState(true);
-<<<<<<< HEAD
-=======
-  const [zenMode,         setZenMode]         = useState(false);
->>>>>>> 5853a2731b14d9b47e3508ba01523a3f589a31bc
   const [paperMode,       setPaperMode]       = useState(false);
   const [leftCollapsed,   setLeftCollapsed]   = useState(false);
   const [rightCollapsed,  setRightCollapsed]  = useState(false);
@@ -970,10 +966,6 @@ export default function Editor({
 
   const shellClasses = [
     "editor-shell",
-<<<<<<< HEAD
-=======
-    zenMode        ? "zen-mode"        : "",
->>>>>>> 5853a2731b14d9b47e3508ba01523a3f589a31bc
     paperMode      ? "paper-mode"      : "",
     leftCollapsed  ? "left-collapsed"  : "",
     rightCollapsed ? "right-collapsed" : ""
@@ -1051,15 +1043,6 @@ export default function Editor({
 
           <div className="ed-toolbar-group">
             <button
-<<<<<<< HEAD
-=======
-              className={`ed-tb-btn${zenMode ? " active" : ""}`}
-              onClick={() => setZenMode((v) => !v)}
-            >
-              🧘 Zen
-            </button>
-            <button
->>>>>>> 5853a2731b14d9b47e3508ba01523a3f589a31bc
               className={`ed-tb-btn${paperMode ? " active" : ""}`}
               onClick={() => setPaperMode((v) => !v)}
             >
