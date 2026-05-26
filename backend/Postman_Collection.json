@@ -1,0 +1,228 @@
+{
+  "info": {
+    "name": "FilmScript Backend - License System",
+    "description": "Colección completa para probar el backend con sistema de licencias",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "health"]
+        }
+      },
+      "description": "Verifica que el servidor esté funcionando"
+    },
+    {
+      "name": "2. Registro - Instructor",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Juan Instructor\",\n  \"email\": \"instructor@test.com\",\n  \"password\": \"123456\",\n  \"rol\": \"instructor\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/register",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "auth", "register"]
+        }
+      },
+      "description": "Registra un nuevo instructor. NOTA: El rol no se asigna aquí, deberá actualizarse en BD"
+    },
+    {
+      "name": "3. Registro - Estudiante",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Carlos Estudiante\",\n  \"email\": \"estudiante@test.com\",\n  \"password\": \"123456\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/register",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "auth", "register"]
+        }
+      },
+      "description": "Registra un nuevo estudiante"
+    },
+    {
+      "name": "4. Login - Instructor",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"instructor@test.com\",\n  \"password\": \"123456\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "auth", "login"]
+        }
+      },
+      "description": "Login del instructor. Guarda el token en la variable {{instructor_token}}"
+    },
+    {
+      "name": "5. Login - Estudiante",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"estudiante@test.com\",\n  \"password\": \"123456\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "auth", "login"]
+        }
+      },
+      "description": "Login del estudiante. Guarda el token en la variable {{student_token}}"
+    },
+    {
+      "name": "6. GET - Listar Estudiantes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{instructor_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/licenses/estudiantes",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "licenses", "estudiantes"]
+        }
+      },
+      "description": "Lista todos los estudiantes (solo instructor). Requiere token en Authorization"
+    },
+    {
+      "name": "7. POST - Asignar Licencia",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{instructor_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estudianteId\": \"CAMBIAR_POR_ID_REAL\",\n  \"tipo\": \"mensual\",\n  \"duracionMeses\": 1\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/licenses/asignar",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "licenses", "asignar"]
+        }
+      },
+      "description": "Asigna una licencia a un estudiante. El estudianteId viene de la respuesta del endpoint 6"
+    },
+    {
+      "name": "8. PATCH - Renovar Licencia",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{instructor_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"duracionMeses\": 3\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/licenses/LICENCIA_ID/renovar",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "licenses", "LICENCIA_ID", "renovar"]
+        }
+      },
+      "description": "Renueva una licencia existente. Reemplaza LICENCIA_ID con el ID real"
+    },
+    {
+      "name": "9. DELETE - Revocar Licencia",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{instructor_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/licenses/LICENCIA_ID/revocar",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "licenses", "LICENCIA_ID", "revocar"]
+        }
+      },
+      "description": "Revoca una licencia. Reemplaza LICENCIA_ID con el ID real"
+    }
+  ],
+  "variable": [
+    {
+      "key": "instructor_token",
+      "value": "",
+      "description": "Token JWT del instructor"
+    },
+    {
+      "key": "student_token",
+      "value": "",
+      "description": "Token JWT del estudiante"
+    }
+  ]
+}

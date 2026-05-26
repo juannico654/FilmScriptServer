@@ -22,6 +22,25 @@ const userSchema = new mongoose.Schema({
     required: [true, 'La contraseña es obligatoria'],
     minlength: [6, 'La contraseña debe tener al menos 6 caracteres']
   },
+  rol: {
+    type: String,
+    enum: ['instructor', 'admin', 'estudiante'],
+    default: 'estudiante'
+  },
+  licencia: {
+    estado: {
+      type: String,
+      enum: ['activa', 'inactiva', 'vencida'],
+      default: 'inactiva'
+    },
+    fechaExpiracion: Date,
+    tipo: {
+      type: String,
+      enum: ['vitalicia', 'mensual'],
+      default: 'mensual'
+    },
+    asignadoPor: mongoose.Schema.Types.ObjectId
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -52,6 +71,8 @@ userSchema.methods.toSafeObject = function () {
     id: this._id,
     name: this.name,
     email: this.email,
+    rol: this.rol,
+    licencia: this.licencia,
     createdAt: this.createdAt
   };
 };

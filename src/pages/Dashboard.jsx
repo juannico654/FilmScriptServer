@@ -26,6 +26,7 @@ function useOutsideClick(ref, callback) {
 }
 
 export default function Dashboard({ onLogout, usuario }) {
+  const isInstructor = usuario?.rol === "instructor"; // Normal
   const [nav,      setNav]      = useState("Inicio");
   const [edKey,    setEdKey]    = useState(0);
   const [edData,   setEdData]   = useState(null);
@@ -354,6 +355,11 @@ export default function Dashboard({ onLogout, usuario }) {
               <span className="ni">{item.icon}</span>{item.label}
             </button>
           ))}
+          {isInstructor && (
+            <button className="nav-btn" onClick={() => { setNav("Panel Instructor"); closeEditor(); }}>
+              <span className="ni">👨‍🏫</span>Panel Instructor
+            </button>
+          )}
         </div>
         <div className="sidebar-gap" />
         <div className="sidebar-foot">

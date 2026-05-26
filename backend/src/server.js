@@ -14,15 +14,24 @@ app.use(express.json());
 
 // Importar rutas (solo si existen)
 let authRoutes;
+let licenseRoutes;
 try {
   authRoutes = require('./routes/authRoutes');
 } catch (err) {
   console.log("⚠️  Archivo authRoutes.js aún no existe. Se creará después.");
 }
+try {
+  licenseRoutes = require('./routes/licenseRoutes');
+} catch (err) {
+  console.log("⚠️  Archivo licenseRoutes.js aún no existe. Se creará después.");
+}
 
 // Rutas
 if (authRoutes) {
   app.use('/api/auth', authRoutes);
+}
+if (licenseRoutes) {
+  app.use('/api/licenses', licenseRoutes);
 }
 
 // Ruta de health check
