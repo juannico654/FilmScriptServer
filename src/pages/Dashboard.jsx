@@ -383,7 +383,6 @@ export default function Dashboard({ onLogout, usuario }) {
           <div className="rp-sec">
             <div className="rp-head">
               <div className="rp-ttl">Equipo</div>
-              <button className="rp-act">⚙ ▾</button>
             </div>
             <div className="sc-add">
               <button className="btn-sc" onClick={() => { setNav("Proyectos"); openEditor("Sin título", null); }}>
