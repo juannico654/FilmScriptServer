@@ -26,16 +26,31 @@ export default function Login({ onLogin }) {
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
     try {
-      // TODO: await fetch("/api/auth/login", ...)
-      await new Promise(r => setTimeout(r, 800));
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password
+        })
+      });
 
-      // Extrae el nombre del email
-      const nombreDeEmail = form.email.split("@")[0];
-      const nombre = nombreDeEmail.charAt(0).toUpperCase() + nombreDeEmail.slice(1);
-      onLogin({ nombre, email: form.email });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setApiErr(data.message || "Error al iniciar sesión");
+        return;
+      }
+
+      // Guardar token y usuario en localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("usuario", JSON.stringify(data.user));
+
+      // Pasar datos al parent
+      onLogin(data.user);
 
     } catch (err) {
-      setApiErr(err.message || "Error al iniciar sesión.");
+      setApiErr(err.message || "Error de conexión. Verifica que el backend esté corriendo.");
     } finally {
       setLoading(false);
     }

@@ -8,6 +8,9 @@ import Personajes  from "./Personajes";
 import Comentarios from "./Comentarios";
 import Versiones   from "./Versiones";
 import Editor      from "./Editor";
+import CargueMasivo from "./CargueMasivo";
+import PanelInstructor from "./PanelInstructor";
+
 const NAV = [
   { icon: "⌂", label: "Inicio"       },
   { icon: "⌘", label: "Proyectos"   },
@@ -32,9 +35,9 @@ export default function Dashboard({ onLogout, usuario }) {
   const [edData,   setEdData]   = useState(null);
 
   // ── Datos desde el backend ────────────────────────────────────────
-  const [projects,  setProjects]  = useState([]);
+  const [projects,  _setProjects]  = useState([]);
   const [collabs,   setCollabs]   = useState([]);
-  const [activity,  setActivity]  = useState([]);
+  const [activity,  _setActivity]  = useState([]);
   const [notifs,    setNotifs]    = useState([]);
   const [loadingRP, setLoadingRP] = useState(true);
 
@@ -171,12 +174,14 @@ export default function Dashboard({ onLogout, usuario }) {
 
   const renderView = () => {
     switch (nav) {
-      case "Proyectos":   return <Proyectos   onEdit={openEditor} />;
-      case "Escenas":     return <Escenas     projects={projects} />;
-      case "Personajes":  return <Personajes  projects={projects} />;
-      case "Comentarios": return <Comentarios currentUser={usuario} />;
-      case "Versiones":   return <Versiones   />;
-      default:            return <Inicio      onEdit={openEditor} />;
+      case "Proyectos":       return <Proyectos   onEdit={openEditor} />;
+      case "Escenas":         return <Escenas     projects={projects} />;
+      case "Personajes":      return <Personajes  projects={projects} />;
+      case "Comentarios":     return <Comentarios currentUser={usuario} />;
+      case "Versiones":       return <Versiones   />;
+      case "Cargue Masivo":   return <CargueMasivo />;
+      case "Panel Instructor": return <PanelInstructor />;
+      default:                return <Inicio      onEdit={openEditor} />;
     }
   };
 
@@ -356,9 +361,14 @@ export default function Dashboard({ onLogout, usuario }) {
             </button>
           ))}
           {isInstructor && (
-            <button className="nav-btn" onClick={() => { setNav("Panel Instructor"); closeEditor(); }}>
-              <span className="ni">👨‍🏫</span>Panel Instructor
-            </button>
+            <>
+              <button className="nav-btn" onClick={() => { setNav("Cargue Masivo"); closeEditor(); }}>
+                <span className="ni">⬆️</span>Cargue Masivo
+              </button>
+              <button className="nav-btn" onClick={() => { setNav("Panel Instructor"); closeEditor(); }}>
+                <span className="ni">👨‍🏫</span>Panel Instructor
+              </button>
+            </>
           )}
         </div>
         <div className="sidebar-gap" />

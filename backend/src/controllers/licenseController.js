@@ -201,9 +201,158 @@ const revocarLicencia = async (req, res) => {
   }
 };
 
+// POST: Cargue masivo de estudiantes y licencias
+const cargaMasiva = async (req, res) => {
+  try {
+    const { estudiantes } = req.body;
+    const instructorId = req.user._id;
+
+    // Validar datos
+    if (!Array.isArray(estudiantes) || estudiantes.length === 0) {
+      return res.status(400).json({ message: 'Se requiere un array de estudiantes' });
+    }
+
+    // Límite de 500 estudiantes por carga
+    if (estudiantes.length > 500) {
+      return res.status(400).json({ message: 'Máximo 500 estudiantes por carga' });
+    }
+
+    const resultados = {
+      exitosos: [],
+      errores: [],
+      total: estudiantes.length
+    };
+
+    // Procesar cada estudiante
+    for (let i = 0; i < estudiantes.length; i++) {
+      try {
+        const { nombre, correo } = estudiantes[i];
+
+        // Validar campos
+        if (!nombre?.trim() || !correo?.trim()) {
+          resultados.errores.push({
+            fila: i + 1,
+            correo: correo || 'sin correo',
+            error: 'Faltan campos requeridos'
+          });
+          continue;
+        }
+
+        // Validar formato de correo
+        if (!/\S+@\S+\.\S+/.test(correo)) {
+          resultados.errores.push({
+            fila: i + 1,
+            correo,
+            error: 'Formato de correo inválido'
+          });
+          continue;
+        }
+
+        // Verificar si el usuario ya existe
+        let usuario = await User.findOne({ email: correo.toLowerCase() });
+
+        if (usuario) {
+          // Si existe y ya es estudiante con licencia activa
+          if (usuario.rol === 'estudiante' && usuario.licencia?.estado === 'activa') {
+            resultados.errores.push({
+              fila: i + 1,
+              correo,
+              error: 'Usuario ya existe con licencia activa'
+            });
+            continue;
+          }
+
+          // Si existe pero es otro rol, no se puede cambiar
+          if (usuario.rol !== 'estudiante') {
+            resultados.errores.push({
+              fila: i + 1,
+              correo,
+              error: `Usuario existe como ${usuario.rol}, no se puede cambiar rol`
+            });
+            continue;
+          }
+        } else {
+          // Crear nuevo usuario estudiante
+          usuario = new User({
+            name: nombre.trim(),
+            email: correo.toLowerCase().trim(),
+            password: Math.random().toString(36).slice(-12), // Contraseña temporal aleatoria
+            rol: 'estudiante'
+          });
+          await usuario.save();
+        }
+
+        // Crear licencia mensual de 1 mes por defecto
+        const fechaExpiracion = new Date();
+        fechaExpiracion.setMonth(fechaExpiracion.getMonth() + 1);
+
+        let licencia = await Licencia.findOne({ usuarioId: usuario._id });
+
+        if (licencia) {
+          licencia.tipo = 'mensual';
+          licencia.estado = 'activa';
+          licencia.fechaExpiracion = fechaExpiracion;
+          licencia.instructorAsigno = instructorId;
+          await licencia.save();
+        } else {
+          licencia = new Licencia({
+            usuarioId: usuario._id,
+            tipo: 'mensual',
+            fechaExpiracion,
+            estado: 'activa',
+            instructorAsigno: instructorId
+          });
+          await licencia.save();
+        }
+
+        // Actualizar usuario con información de licencia
+        usuario.licencia = {
+          estado: 'activa',
+          fechaExpiracion,
+          tipo: 'mensual',
+          asignadoPor: instructorId
+        };
+        await usuario.save();
+
+        resultados.exitosos.push({
+          fila: i + 1,
+          nombre: usuario.name,
+          correo: usuario.email,
+          licenciaExpira: fechaExpiracion
+        });
+
+      } catch (error) {
+        resultados.errores.push({
+          fila: i + 1,
+          correo: estudiantes[i].correo,
+          error: error.message
+        });
+      }
+    }
+
+    // Resumen final
+    res.status(201).json({
+      message: `Cargue completado: ${resultados.exitosos.length} exitosos, ${resultados.errores.length} errores`,
+      resumen: {
+        total: resultados.total,
+        exitosos: resultados.exitosos.length,
+        errores: resultados.errores.length,
+        porcentajeExito: Math.round((resultados.exitosos.length / resultados.total) * 100)
+      },
+      detalles: resultados
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error en cargue masivo', error: error.message });
+  }
+};
+
+
 module.exports = {
   obtenerEstudiantes,
   asignarLicencia,
   renovarLicencia,
-  revocarLicencia
+  revocarLicencia,
+  cargaMasiva
 };

@@ -7,7 +7,8 @@ const {
   obtenerEstudiantes,
   asignarLicencia,
   renovarLicencia,
-  revocarLicencia
+  revocarLicencia,
+  cargaMasiva
 } = require('../controllers/licenseController');
 
 // Todas las rutas requieren autenticación e ser instructor
@@ -18,6 +19,9 @@ router.get('/estudiantes', obtenerEstudiantes);
 
 // POST: Asignar licencia a un estudiante
 router.post('/asignar', asignarLicencia);
+
+// POST: Cargue masivo de estudiantes
+router.post('/carga-masiva', cargaMasiva);
 
 // PATCH: Renovar licencia
 router.patch('/:licenciaId/renovar', renovarLicencia);

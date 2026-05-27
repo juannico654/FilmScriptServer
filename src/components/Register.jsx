@@ -41,11 +41,32 @@ export default function Register({ onLogin }) {
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
     try {
-      // TODO: await fetch("/api/auth/register", ...)
-      await new Promise(r => setTimeout(r, 800));
-      onLogin();
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          password: form.password
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setApiErr(data.message || "Error al crear la cuenta");
+        return;
+      }
+
+      // Guardar token y usuario en localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("usuario", JSON.stringify(data.user));
+
+      // Pasar datos al parent
+      onLogin(data.user);
+
     } catch (err) {
-      setApiErr(err.message || "Error al crear la cuenta.");
+      setApiErr(err.message || "Error de conexión. Verifica que el backend esté corriendo.");
     } finally {
       setLoading(false);
     }

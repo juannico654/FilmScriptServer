@@ -12,6 +12,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const User = require('./models/User');
+
 // Importar rutas (solo si existen)
 let authRoutes;
 let licenseRoutes;
@@ -62,8 +64,37 @@ const connectDB = async () => {
 // Iniciar servidor
 const PORT = process.env.PORT || 5000;
 
+const seedInstructor = async () => {
+  if (process.env.NODE_ENV === 'production') return;
+
+  const email = process.env.SEED_INSTRUCTOR_EMAIL || 'instructor@filmscript.test';
+  const password = process.env.SEED_INSTRUCTOR_PASSWORD || 'Instr1234!';
+
+  const existing = await User.findOne({ email });
+  if (existing) {
+    if (existing.rol !== 'instructor') {
+      existing.rol = 'instructor';
+      await existing.save();
+      console.log(`🔧 Usuario existente actualizado a instructor: ${email}`);
+    } else {
+      console.log(`✅ Instructor ya existe: ${email}`);
+    }
+    return;
+  }
+
+  const user = new User({
+    name: 'Instructor Demo',
+    email,
+    password,
+    rol: 'instructor'
+  });
+  await user.save();
+  console.log(`✅ Cuenta de instructor creada: ${email} / ${password}`);
+};
+
 const startServer = async () => {
   await connectDB();
+  await seedInstructor();
 
   app.listen(PORT, () => {
     console.log(`🚀 Servidor FilmScript corriendo en http://localhost:${PORT}`);
