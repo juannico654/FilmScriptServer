@@ -137,8 +137,6 @@ export default function Comentarios({ projectId, currentUser }) {
         <div className="empty-state">Cargando comentarios…</div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">💬</div>
-          <div className="empty-title">Sin comentarios aquí</div>
           <div className="empty-sub">Sé el primero en dejar un comentario.</div>
         </div>
       ) : (

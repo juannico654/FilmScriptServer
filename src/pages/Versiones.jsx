@@ -68,13 +68,8 @@ export default function Versiones({ projectId }) {
         <div className="empty-state">Cargando versiones…</div>
       ) : versions.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">📋</div>
           <div className="empty-title">Sin versiones guardadas</div>
-          <div className="empty-sub">
-            {projectId
-              ? "Guarda la primera versión de este guión."
-              : "Abre un proyecto para ver su historial de versiones."}
-          </div>
+          
           {projectId && (
             <button className="btn-gold sm" onClick={saveNew}>＋ Guardar versión</button>
           )}

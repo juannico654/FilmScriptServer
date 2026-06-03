@@ -10,6 +10,7 @@ import Versiones   from "./Versiones";
 import Editor      from "./Editor";
 import CargueMasivo from "./CargueMasivo";
 import PanelInstructor from "./PanelInstructor";
+import Precios from "./Precios";
 
 const NAV = [
   { icon: "⌂", label: "Inicio"       },
@@ -18,6 +19,7 @@ const NAV = [
   { icon: "✉", label: "Comentarios" },
   { icon: "◎", label: "Personajes"  },
   { icon: "⎘", label: "Versiones"   },
+  { icon: "$", label: "Precios"    },
 ];
 
 function useOutsideClick(ref, callback) {
@@ -179,6 +181,7 @@ export default function Dashboard({ onLogout, usuario }) {
       case "Personajes":      return <Personajes  projects={projects} />;
       case "Comentarios":     return <Comentarios currentUser={usuario} />;
       case "Versiones":       return <Versiones   />;
+      case "Precios":          return <Precios />;
       case "Cargue Masivo":   return <CargueMasivo />;
       case "Panel Instructor": return <PanelInstructor />;
       default:                return <Inicio      onEdit={openEditor} />;
@@ -369,6 +372,11 @@ export default function Dashboard({ onLogout, usuario }) {
                 <span className="ni">👨‍🏫</span>Panel Instructor
               </button>
             </>
+          )}
+          {usuario?.rol === "admin" && (
+            <button className="nav-btn" onClick={() => { window.location.href = "/admin"; }}>
+              <span className="ni">⚙️</span>Panel Admin
+            </button>
           )}
         </div>
         <div className="sidebar-gap" />
