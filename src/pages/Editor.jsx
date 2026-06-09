@@ -1054,12 +1054,6 @@ export default function Editor({
             >
               🎞 Créditos
             </button>
-            <button
-              className="ed-tb-btn"
-              onClick={() => setRightCollapsed((v) => !v)}
-            >
-              📚 Inspector
-            </button>
           </div>
 
           <div className="ed-toolbar-spacer" />
@@ -1152,60 +1146,9 @@ export default function Editor({
       {/* ===================== RIGHT ===================== */}
       <aside className={`ed-right${rightCollapsed ? " collapsed" : ""}`}>
 
-        <div className="ed-right-tabs">
-          {[
-            ["inspector",  "Inspector"],
-            ["characters", "Personajes"],
-            ["notes",      "Atajos"],
-            ["stats",      "Stats"]
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              className={`ed-right-tab${rightTab === id ? " active" : ""}`}
-              onClick={() => setRightTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
         <div className="ed-right-content">
 
-          {/* STATS */}
-          {rightTab === "stats" && (
-            <div className="ed-r-sec">
-              <div className="ed-r-ttl">Estadísticas</div>
-
-              <div className="ed-r-row">
-                <span className="ed-r-lbl">Palabras</span>
-                <span className="ed-r-val">{wordCount}</span>
-              </div>
-              <div className="ed-r-row">
-                <span className="ed-r-lbl">Escenas</span>
-                <span className="ed-r-val">{scenes.length}</span>
-              </div>
-              <div className="ed-r-row">
-                <span className="ed-r-lbl">Bloques</span>
-                <span className="ed-r-val">{blocks.length}</span>
-              </div>
-              <div className="ed-r-row">
-                <span className="ed-r-lbl">Páginas reales</span>
-                <span className="ed-r-val">
-                  {pages.length + (showCredits ? 1 : 0)}
-                </span>
-              </div>
-              <div className="ed-r-row">
-                <span className="ed-r-lbl">Personajes únicos</span>
-                <span className="ed-r-val">{characterNames.length}</span>
-              </div>
-              <div className="ed-r-row">
-                <span className="ed-r-lbl">Min. estimados</span>
-                <span className="ed-r-val">
-                  ~{Math.ceil(wordCount / 220)}
-                </span>
-              </div>
-            </div>
-          )}
+          
 
           {/* CHARACTERS */}
           {rightTab === "characters" && (
@@ -1228,61 +1171,6 @@ export default function Editor({
                 </div>
               ))}
             </div>
-          )}
-
-          {/* INSPECTOR */}
-          {rightTab === "inspector" && (
-            <>
-              <div className="ed-r-sec">
-                <div className="ed-r-ttl">Proyecto</div>
-                <label className="ed-r-field-lbl">Título</label>
-                <input
-                  className="ed-inp"
-                  value={credits.title}
-                  onChange={(e) =>
-                    setCredits((c) => ({ ...c, title: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="ed-r-sec">
-                <div className="ed-r-ttl">Bloque activo</div>
-                <div className="ed-r-row">
-                  <span className="ed-r-lbl">Tipo</span>
-                  <span className="ed-r-val">
-                    {activeBlock ? LABELS[activeBlock.type] : "—"}
-                  </span>
-                </div>
-                <div className="ed-r-row">
-                  <span className="ed-r-lbl">ID</span>
-                  <span className="ed-r-val">
-                    #{activeBlock?.id ?? "—"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="ed-r-sec">
-                <div className="ed-r-ttl">Insertar bloque</div>
-                <div className="fmt-grid">
-                  {[
-                    ["scene",     "🎬 Escena"],
-                    ["action",    "📝 Acción"],
-                    ["char",      "👤 Personaje"],
-                    ["dialog",    "💬 Diálogo"],
-                    ["paren",     "() Nota"],
-                    ["acotation", "⏭ Acotación"]
-                  ].map(([type, label]) => (
-                    <button
-                      key={type}
-                      className="fmt-btn"
-                      onClick={() => addBlock(type, activeId)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
           )}
 
           {/* NOTES / SHORTCUTS */}
