@@ -33,23 +33,23 @@ const verificarInstructor = (req, res, next) => {
   next();
 };
 
-// Verificar que tenga licencia activa (para estudiantes)
+// Verificar que tenga licencia activa (solo aplica al rol "usuario")
 const verificarLicencia = (req, res, next) => {
   const { rol, licencia } = req.user;
-  
-  // Instructores y admins siempre tienen acceso
-  if (rol === 'instructor' || rol === 'admin') {
+
+  // Administradores, instructores y aprendices siempre tienen acceso completo
+  if (rol === 'admin' || rol === 'instructor' || rol === 'aprendiz') {
     return next();
   }
-  
-  // Estudiantes necesitan licencia activa
-  if (!licencia || licencia.estado !== 'activa' || new Date() > licencia.fechaExpiracion) {
-    return res.status(403).json({ 
-      message: 'Licencia inactiva, vencida o no asignada',
+
+  // Los usuarios (cuentas que deben pagar un plan) necesitan licencia activa
+  if (!licencia || licencia.estado !== 'activa' || !licencia.fechaExpiracion || new Date() > licencia.fechaExpiracion) {
+    return res.status(403).json({
+      message: 'Licencia inactiva, vencida o no asignada. Debes adquirir un plan para usar la plataforma.',
       licencia: licencia || null
     });
   }
-  
+
   next();
 };
 

@@ -24,8 +24,8 @@ const userSchema = new mongoose.Schema({
   },
   rol: {
     type: String,
-    enum: ['instructor', 'admin', 'estudiante'],
-    default: 'estudiante'
+    enum: ['admin', 'instructor', 'aprendiz', 'usuario'],
+    default: 'usuario'
   },
   licencia: {
     estado: {
@@ -36,8 +36,13 @@ const userSchema = new mongoose.Schema({
     fechaExpiracion: Date,
     tipo: {
       type: String,
-      enum: ['vitalicia', 'mensual'],
+      enum: ['vitalicia', 'mensual', 'anual'],
       default: 'mensual'
+    },
+    plan: {
+      type: String,
+      enum: ['mes', 'anio', null],
+      default: null
     },
     asignadoPor: mongoose.Schema.Types.ObjectId
   },
