@@ -9,8 +9,13 @@ const licenciaSchema = new mongoose.Schema({
   },
   tipo: {
     type: String,
-    enum: ['mensual', 'vitalicia'],
+    enum: ['mensual', 'anual', 'vitalicia'],
     required: true
+  },
+  plan: {
+    type: String,
+    enum: ['mes', 'anio', null],
+    default: null
   },
   fechaCompra: {
     type: Date,

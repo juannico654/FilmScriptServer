@@ -8,7 +8,7 @@ const obtenerEstudiantes = async (req, res) => {
     const instructorId = req.user._id;
     
     // Obtener todos los usuarios que son estudiantes
-    const estudiantes = await User.find({ rol: 'estudiante' })
+    const estudiantes = await User.find({ rol: 'aprendiz' })
       .select('_id name email licencia createdAt')
       .lean();
 
@@ -57,7 +57,7 @@ const asignarLicencia = async (req, res) => {
       return res.status(404).json({ message: 'Estudiante no encontrado' });
     }
 
-    if (estudiante.rol !== 'estudiante') {
+    if (estudiante.rol !== 'aprendiz') {
       return res.status(400).json({ message: 'El usuario no es un estudiante' });
     }
 
@@ -253,7 +253,7 @@ const cargaMasiva = async (req, res) => {
 
         if (usuario) {
           // Si existe y ya es estudiante con licencia activa
-          if (usuario.rol === 'estudiante' && usuario.licencia?.estado === 'activa') {
+          if (usuario.rol === 'aprendiz' && usuario.licencia?.estado === 'activa') {
             resultados.errores.push({
               fila: i + 1,
               correo,
@@ -263,7 +263,7 @@ const cargaMasiva = async (req, res) => {
           }
 
           // Si existe pero es otro rol, no se puede cambiar
-          if (usuario.rol !== 'estudiante') {
+          if (usuario.rol !== 'aprendiz') {
             resultados.errores.push({
               fila: i + 1,
               correo,
@@ -277,7 +277,7 @@ const cargaMasiva = async (req, res) => {
             name: nombre.trim(),
             email: correo.toLowerCase().trim(),
             password: Math.random().toString(36).slice(-12), // Contraseña temporal aleatoria
-            rol: 'estudiante'
+            rol: 'aprendiz'
           });
           await usuario.save();
         }

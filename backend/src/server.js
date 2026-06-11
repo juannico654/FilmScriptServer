@@ -15,15 +15,19 @@ app.use(express.json());
 const User = require('./models/User');
 
 // Importar rutas
-let authRoutes, licenseRoutes, adminRoutes;
+let authRoutes, licenseRoutes, adminRoutes, planRoutes, paymentRoutes;
 try { authRoutes    = require('./routes/authRoutes');    } catch { console.log("⚠️  authRoutes.js no encontrado.");    }
 try { licenseRoutes = require('./routes/licenseRoutes'); } catch { console.log("⚠️  licenseRoutes.js no encontrado."); }
 try { adminRoutes   = require('./routes/adminRoutes');   } catch (e) { console.log("⚠️  adminRoutes.js no encontrado.", e.message); }
+try { planRoutes    = require('./routes/planRoutes');    } catch (e) { console.log("⚠️  planRoutes.js no encontrado.", e.message); }
+try { paymentRoutes = require('./routes/paymentRoutes'); } catch (e) { console.log("⚠️  paymentRoutes.js no encontrado.", e.message); }
 
 // Registrar rutas
 if (authRoutes)    app.use('/api/auth',    authRoutes);
 if (licenseRoutes) app.use('/api/licenses', licenseRoutes);
 if (adminRoutes)   app.use('/api/admin',   adminRoutes);
+if (planRoutes)    app.use('/api/plans',   planRoutes);
+if (paymentRoutes) app.use('/api/payments', paymentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

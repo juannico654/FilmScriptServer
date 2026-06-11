@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const DEFAULT_PRICES = { dia: 5000, mes: 40000, anio: 400000 };
+const DEFAULT_PRICES = { mes: 40000, anio: 400000 };
 
 const fmt = (n) =>
   new Intl.NumberFormat("es-CO", {
@@ -9,24 +9,24 @@ const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-export default function Precios() {
+export default function Precios({ onComprar, comprando, modoCompra }) {
   const [prices, setPrices] = useState(DEFAULT_PRICES);
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("fs_planes"));
-      if (saved) setPrices(saved);
-    } catch {}
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-    // Escucha cambios del admin en tiempo real (misma pestaña)
-    const handler = () => {
+  useEffect(() => {
+    const cargarPrecios = async () => {
       try {
-        const saved = JSON.parse(localStorage.getItem("fs_planes"));
-        if (saved) setPrices(saved);
-      } catch {}
+        const res = await fetch(`${API}/api/plans`);
+        if (res.ok) {
+          const data = await res.json();
+          setPrices({ mes: data.mes, anio: data.anio });
+        }
+      } catch {
+        // si falla, se quedan los precios por defecto
+      }
     };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
+    cargarPrecios();
   }, []);
 
   const planes = [
@@ -36,12 +36,7 @@ export default function Precios() {
       periodo: "24 horas",
       desc: "Acceso completo a la plataforma por un día. Ideal para probar todas las funcionalidades.",
       color: "#6eb5ff",
-      features: [
-        "Editor de guion completo",
-        "Hasta 3 proyectos",
-        "Exportar en PDF",
-        "Soporte básico",
-      ],
+      features: ["Editor de guion completo", "Hasta 3 proyectos", "Exportar en PDF", "Soporte básico"],
     },
     {
       key: "mes",
@@ -50,13 +45,7 @@ export default function Precios() {
       desc: "El plan más popular. Acceso ilimitado durante un mes completo para desarrollar tus proyectos.",
       color: "#e8c547",
       badge: "MÁS POPULAR",
-      features: [
-        "Todo lo del Plan Día",
-        "Proyectos ilimitados",
-        "Colaboradores",
-        "Carga masiva",
-        "Soporte prioritario",
-      ],
+      features: ["Todo lo del Plan Día", "Proyectos ilimitados", "Colaboradores", "Carga masiva", "Soporte prioritario"],
     },
     {
       key: "anio",
@@ -74,7 +63,7 @@ export default function Precios() {
   ];
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto" }}>
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 48 }}>
         <div
@@ -115,13 +104,7 @@ export default function Precios() {
       </div>
 
       {/* Tarjetas */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 20,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
         {planes.map((p) => (
           <div
             key={p.key}
@@ -173,15 +156,7 @@ export default function Precios() {
             {/* Icono + nombre */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>{p.icon}</div>
-              <div
-                style={{
-                  fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: 22,
-                  letterSpacing: 2,
-                  color: "var(--text)",
-                  marginBottom: 4,
-                }}
-              >
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: "var(--text)", marginBottom: 4 }}>
                 {p.label}
               </div>
               <div style={{ fontSize: 12, color: "var(--muted2)" }}>
@@ -250,31 +225,18 @@ export default function Precios() {
             </div>
 
             {/* Botón */}
-            <button
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: 10,
-                border: `1px solid ${p.color}`,
-                background: p.badge ? p.color : "transparent",
-                color: p.badge ? "#000" : p.color,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: "pointer",
-                transition: "background 0.2s, color 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = p.color;
-                e.currentTarget.style.color = "#000";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = p.badge
-                  ? p.color
-                  : "transparent";
-                e.currentTarget.style.color = p.badge ? "#000" : p.color;
-              }}
+            <button style={{
+              width: "100%", padding: "12px",
+              borderRadius: 10, border: `1px solid ${p.color}`,
+              background: p.badge ? p.color : "transparent",
+              color: p.badge ? "#000" : p.color,
+              fontWeight: 700, fontSize: 13, cursor: "pointer",
+              transition: "background 0.2s, color 0.2s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = p.color; e.currentTarget.style.color = "#000"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = p.badge ? p.color : "transparent"; e.currentTarget.style.color = p.badge ? "#000" : p.color; }}
             >
-              Adquirir {p.label}
+              {comprando === p.key ? "Procesando…" : (modoCompra ? `Comprar ${p.label}` : `Adquirir ${p.label}`)}
             </button>
           </div>
         ))}
