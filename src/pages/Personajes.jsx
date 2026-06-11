@@ -8,7 +8,7 @@ const EMPTY = {
   role: "Protagonista",
   projectId: "",
   scenes: 0,
-  desc: ""
+  desc: "",
 };
 
 export default function Personajes({ projects = [] }) {
@@ -32,22 +32,21 @@ export default function Personajes({ projects = [] }) {
   const projectList =
     projects.length > 0
       ? projects
-      : [...new Map(chars.map(c => [c.projectId, c.projectName])).entries()]
-          .map(([id, name]) => ({ id, name }));
+      : [
+          ...new Map(chars.map((c) => [c.projectId, c.projectName])).entries(),
+        ].map(([id, name]) => ({ id, name }));
 
-  const filterOpts = ["Todos", ...projectList.map(p => p.name)];
+  const filterOpts = ["Todos", ...projectList.map((p) => p.name)];
 
   const list =
-    filter === "Todos"
-      ? chars
-      : chars.filter(c => c.projectName === filter);
+    filter === "Todos" ? chars : chars.filter((c) => c.projectName === filter);
 
   const set = (k, v) => {
-    setForm(f => ({ ...f, [k]: v }));
-    setErrors(e => ({ ...e, [k]: "" }));
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => ({ ...e, [k]: "" }));
   };
 
-  const openView = c => setModal({ mode: "view", char: c });
+  const openView = (c) => setModal({ mode: "view", char: c });
 
   const openNew = () => {
     setForm({ ...EMPTY });
@@ -55,7 +54,7 @@ export default function Personajes({ projects = [] }) {
     setModal({ mode: "new" });
   };
 
-  const openEdit = c => {
+  const openEdit = (c) => {
     setForm({ ...c });
     setErrors({});
     setModal({ mode: "edit", char: c });
@@ -87,42 +86,42 @@ export default function Personajes({ projects = [] }) {
 
     const payload = {
       ...form,
-      scenes: Number(form.scenes) || 0
+      scenes: Number(form.scenes) || 0,
     };
 
     const projName =
-      projectList.find(p => p.id === form.projectId)?.name || "";
+      projectList.find((p) => p.id === form.projectId)?.name || "";
 
     if (modal.mode === "new") {
       // TODO: POST /api/characters
 
-      setChars(prev => [
+      setChars((prev) => [
         ...prev,
         {
           ...payload,
           id: Date.now(),
-          projectName: projName
-        }
+          projectName: projName,
+        },
       ]);
     } else {
       // TODO: PUT /api/characters/:id
 
-      setChars(prev =>
-        prev.map(c =>
+      setChars((prev) =>
+        prev.map((c) =>
           c.id === modal.char.id
             ? { ...c, ...payload, projectName: projName }
-            : c
-        )
+            : c,
+        ),
       );
     }
 
     close();
   };
 
-  const remove = async id => {
+  const remove = async (id) => {
     // TODO: DELETE /api/characters/:id
 
-    setChars(prev => prev.filter(c => c.id !== id));
+    setChars((prev) => prev.filter((c) => c.id !== id));
 
     close();
   };
@@ -131,12 +130,10 @@ export default function Personajes({ projects = [] }) {
     <>
       <div className="page-h">Personajes</div>
 
-      <div className="page-sub">
-        Ficha de cada personaje de tus guiones.
-      </div>
+      <div className="page-sub">Ficha de cada personaje de tus guiones.</div>
 
       <div className="fbar">
-        {filterOpts.map(p => (
+        {filterOpts.map((p) => (
           <button
             key={p}
             className={`fbtn ${filter === p ? "on" : ""}`}
@@ -155,22 +152,38 @@ export default function Personajes({ projects = [] }) {
 
       {loading ? (
         <div className="empty-state">
-          Cargando personajes…
+          <div className="empty-icon">⏳</div>
+          <div className="empty-title">Cargando personajes</div>
+          <div className="empty-sub">Preparando tus personajes…</div>
         </div>
       ) : list.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty-state empty-template">
+          <div className="empty-icon">👥</div>
+          <div className="empty-title">Sin personajes creados</div>
           <div className="empty-sub">
-            Agrega los personajes para desarrollar tu guión.
+            Agrega los personajes para desarrollar y dar vida a tu guión.
           </div>
+          <div className="sample-card sample-card-character">
+            <div className="sample-card-title">Alex Mercado</div>
+            <div className="sample-card-meta">
+              Protagonista · 5 escenas · Detective con pasado
+            </div>
+            <div className="sample-card-note">
+              Un personaje base para empezar tu historia con una voz clara.
+            </div>
+          </div>
+          <button
+            className="btn-gold sm"
+            onClick={openNew}
+            style={{ marginTop: 16 }}
+          >
+            ＋ Nuevo personaje
+          </button>
         </div>
       ) : (
         <div className="ch-grid">
-          {list.map(c => (
-            <div
-              className="ch-card"
-              key={c.id}
-              onClick={() => openView(c)}
-            >
+          {list.map((c) => (
+            <div className="ch-card" key={c.id} onClick={() => openView(c)}>
               <div className="ch-name">{c.name}</div>
 
               <div className="ch-role">{c.role}</div>
@@ -189,36 +202,24 @@ export default function Personajes({ projects = [] }) {
       {modal && (
         <div
           className="ch-modal-overlay"
-          onClick={e =>
-            e.target === e.currentTarget && close()
-          }
+          onClick={(e) => e.target === e.currentTarget && close()}
         >
           <div className="ch-modal">
-            <button
-              className="ch-modal-close"
-              onClick={close}
-            >
+            <button className="ch-modal-close" onClick={close}>
               ✕
             </button>
 
             {modal.mode === "view" ? (
               <>
-                <div className="ch-modal-name">
-                  {modal.char.name}
-                </div>
+                <div className="ch-modal-name">{modal.char.name}</div>
 
-                <div className="ch-modal-role">
-                  {modal.char.role}
-                </div>
+                <div className="ch-modal-role">{modal.char.role}</div>
 
-                <div className="ch-modal-desc">
-                  {modal.char.desc}
-                </div>
+                <div className="ch-modal-desc">{modal.char.desc}</div>
 
                 <div className="ch-modal-meta">
-                  🎭 {modal.char.scenes} escenas
-                  &nbsp;·&nbsp;
-                  📁 {modal.char.projectName}
+                  🎭 {modal.char.scenes} escenas &nbsp;·&nbsp; 📁{" "}
+                  {modal.char.projectName}
                 </div>
 
                 <div className="ch-modal-acts">
@@ -239,10 +240,7 @@ export default function Personajes({ projects = [] }) {
               </>
             ) : (
               <>
-                <div
-                  className="ch-modal-name"
-                  style={{ marginBottom: 16 }}
-                >
+                <div className="ch-modal-name" style={{ marginBottom: 16 }}>
                   {modal.mode === "new"
                     ? "Nuevo personaje"
                     : "Editar personaje"}
@@ -254,7 +252,7 @@ export default function Personajes({ projects = [] }) {
                     style={{
                       fontSize: "11px",
                       color: "var(--muted2)",
-                      marginBottom: 5
+                      marginBottom: 5,
                     }}
                   >
                     Nombre
@@ -266,15 +264,11 @@ export default function Personajes({ projects = [] }) {
                     }`}
                     placeholder="Nombre del personaje"
                     value={form.name}
-                    onChange={e =>
-                      set("name", e.target.value)
-                    }
+                    onChange={(e) => set("name", e.target.value)}
                   />
 
                   {errors.name && (
-                    <div className="sc-field-err">
-                      ⚠ {errors.name}
-                    </div>
+                    <div className="sc-field-err">⚠ {errors.name}</div>
                   )}
                 </div>
 
@@ -284,7 +278,7 @@ export default function Personajes({ projects = [] }) {
                     style={{
                       fontSize: "11px",
                       color: "var(--muted2)",
-                      marginBottom: 5
+                      marginBottom: 5,
                     }}
                   >
                     Descripción
@@ -295,12 +289,10 @@ export default function Personajes({ projects = [] }) {
                     placeholder="Breve descripción del personaje…"
                     rows={3}
                     value={form.desc}
-                    onChange={e =>
-                      set("desc", e.target.value)
-                    }
+                    onChange={(e) => set("desc", e.target.value)}
                     style={{
                       resize: "vertical",
-                      fontFamily: "inherit"
+                      fontFamily: "inherit",
                     }}
                   />
                 </div>
@@ -309,7 +301,7 @@ export default function Personajes({ projects = [] }) {
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
-                    gap: 10
+                    gap: 10,
                   }}
                 >
                   {/* Rol */}
@@ -318,7 +310,7 @@ export default function Personajes({ projects = [] }) {
                       style={{
                         fontSize: "11px",
                         color: "var(--muted2)",
-                        marginBottom: 5
+                        marginBottom: 5,
                       }}
                     >
                       Rol
@@ -327,14 +319,10 @@ export default function Personajes({ projects = [] }) {
                     <select
                       className="ch-form-sel"
                       value={form.role}
-                      onChange={e =>
-                        set("role", e.target.value)
-                      }
+                      onChange={(e) => set("role", e.target.value)}
                     >
-                      {ROLES.map(r => (
-                        <option key={r}>
-                          {r}
-                        </option>
+                      {ROLES.map((r) => (
+                        <option key={r}>{r}</option>
                       ))}
                     </select>
                   </div>
@@ -345,7 +333,7 @@ export default function Personajes({ projects = [] }) {
                       style={{
                         fontSize: "11px",
                         color: "var(--muted2)",
-                        marginBottom: 5
+                        marginBottom: 5,
                       }}
                     >
                       Proyecto
@@ -353,49 +341,32 @@ export default function Personajes({ projects = [] }) {
 
                     <select
                       className={`ch-form-sel ${
-                        errors.projectId
-                          ? "sc-input-err"
-                          : ""
+                        errors.projectId ? "sc-input-err" : ""
                       }`}
                       value={form.projectId}
-                      onChange={e =>
-                        set("projectId", e.target.value)
-                      }
+                      onChange={(e) => set("projectId", e.target.value)}
                     >
-                      <option value="">
-                        — Seleccionar —
-                      </option>
+                      <option value="">— Seleccionar —</option>
 
-                      {projectList.map(p => (
-                        <option
-                          key={p.id}
-                          value={p.id}
-                        >
+                      {projectList.map((p) => (
+                        <option key={p.id} value={p.id}>
                           {p.name}
                         </option>
                       ))}
                     </select>
 
                     {errors.projectId && (
-                      <div className="sc-field-err">
-                        ⚠ {errors.projectId}
-                      </div>
+                      <div className="sc-field-err">⚠ {errors.projectId}</div>
                     )}
                   </div>
                 </div>
 
                 <div className="ch-modal-acts">
-                  <button
-                    className="btn-gold sm"
-                    onClick={save}
-                  >
+                  <button className="btn-gold sm" onClick={save}>
                     💾 Guardar
                   </button>
 
-                  <button
-                    className="btn-outline"
-                    onClick={close}
-                  >
+                  <button className="btn-outline" onClick={close}>
                     Cancelar
                   </button>
                 </div>

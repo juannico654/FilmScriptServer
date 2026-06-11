@@ -2,22 +2,21 @@ import { useState, useEffect } from "react";
 import "../styles/Inicio.css";
 
 const SL = { active: "En curso", draft: "Borrador", done: "Finalizado" };
-const SC = { active: "b-active", draft: "b-draft",  done: "b-done"    };
+const SC = { active: "b-active", draft: "b-draft", done: "b-done" };
 
 const TEMPLATES = [
-  { icon: "🎬", name: "Piloto de Serie"       },
-  { icon: "🎥", name: "Corto / Cortometraje"  },
+  { icon: "🎬", name: "Piloto de Serie" },
+  { icon: "🎥", name: "Corto / Cortometraje" },
   { icon: "🎞️", name: "Película Largometraje" },
-  { icon: "📢", name: "Publicidad"            },
+  { icon: "📢", name: "Publicidad" },
 ];
 
-export default function Inicio({ onEdit }) {
-  const [projects,     setProjects]     = useState([]);
-  const [collaborators,setCollaborators]= useState(0);
-  const [loading,      setLoading]      = useState(true);
+export default function Inicio({ onEdit, onCommentProject, projects = [] }) {
+  const [collaborators, setCollaborators] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(null);
 
   useEffect(() => {
-   
     setLoading(false);
   }, []);
 
@@ -26,7 +25,9 @@ export default function Inicio({ onEdit }) {
       {/* ── Hero ── */}
       <div className="dash-hero">
         <div className="hero-text">
-          <h1>Crea sin <em>límites.</em></h1>
+          <h1>
+            Crea sin <em>límites.</em>
+          </h1>
           <p>Organiza tus proyectos y escribe tus guiones como nunca antes.</p>
         </div>
         <button className="btn-gold" onClick={() => onEdit("Sin título", null)}>
@@ -42,16 +43,33 @@ export default function Inicio({ onEdit }) {
 
       <div className="proj-list">
         {loading ? (
-          <div className="empty-state">Cargando proyectos…</div>
+          <div className="empty-state">
+            <div className="empty-icon">⏳</div>
+            <div className="empty-title">Cargando proyectos</div>
+            <div className="empty-sub">Preparando tus datos…</div>
+          </div>
         ) : projects.length === 0 ? (
           <div className="empty-state">
-            <button className="btn-gold sm" onClick={() => onEdit("Sin título", null)}>
+            <div className="empty-icon">📽️</div>
+            <div className="empty-title">Bienvenido</div>
+            <div className="empty-sub">
+              Comienza creando tu primer guión cinematográfico.
+            </div>
+            <button
+              className="btn-gold sm"
+              onClick={() => onEdit("Sin título", null)}
+              style={{ marginTop: 16 }}
+            >
               ＋ Iniciar nuevo guión
             </button>
           </div>
         ) : (
-          projects.slice(0, 3).map(p => (
-            <div className="proj-row" key={p.id} onClick={() => onEdit(p.name, null)}>
+          projects.slice(0, 3).map((p) => (
+            <div
+              className="proj-row"
+              key={p.id}
+              onClick={() => onEdit(p.name, null, p)}
+            >
               <div className="proj-ico"></div>
               <div className="proj-inf">
                 <div className="proj-name">{p.name}</div>
@@ -60,7 +78,42 @@ export default function Inicio({ onEdit }) {
               <div className="proj-right">
                 <span className="proj-date">{p.updatedAt}</span>
                 <span className={`badge ${SC[p.status]}`}>{SL[p.status]}</span>
-                <div className="proj-menu">⋮</div>
+                <div
+                  className="proj-menu"
+                  style={{ position: "relative" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(menuOpen === p.id ? null : p.id);
+                  }}
+                >
+                  ⋮
+                  {menuOpen === p.id && (
+                    <div className="proj-dropdown">
+                      <div
+                        className="proj-dd-item"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(p.name, null, p);
+                          setMenuOpen(null);
+                        }}
+                      >
+                        ✏ Editar
+                      </div>
+                      <div
+                        className="proj-dd-item"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (typeof onCommentProject === "function") {
+                            onCommentProject(p, null);
+                          }
+                          setMenuOpen(null);
+                        }}
+                      >
+                        💬 Comentar
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))
@@ -72,8 +125,12 @@ export default function Inicio({ onEdit }) {
         <span className="sec-title">Plantillas rápidas</span>
       </div>
       <div className="tpl-grid">
-        {TEMPLATES.map(t => (
-          <div className="tpl-card" key={t.name} onClick={() => onEdit(t.name, t.name)}>
+        {TEMPLATES.map((t) => (
+          <div
+            className="tpl-card"
+            key={t.name}
+            onClick={() => onEdit(t.name, t.name)}
+          >
             <div className="tpl-ico">{t.icon}</div>
             <div className="tpl-name">{t.name}</div>
           </div>

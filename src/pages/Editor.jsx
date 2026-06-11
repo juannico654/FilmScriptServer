@@ -1,10 +1,4 @@
-import {
-  useState,
-  useRef,
-  useEffect,
-  useMemo,
-  useCallback
-} from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 
 import "../styles/Editor.css";
 
@@ -15,7 +9,7 @@ import {
   TextRun,
   AlignmentType,
   PageBreak,
-  HeadingLevel
+  HeadingLevel,
 } from "docx";
 
 import { saveAs } from "file-saver";
@@ -25,32 +19,25 @@ import { saveAs } from "file-saver";
 /* ======================================================== */
 
 const LABELS = {
-  scene:     "escena",
-  action:    "acción",
-  char:      "personaje",
-  dialog:    "diálogo",
-  paren:     "nota",
-  acotation: "acotación"
+  scene: "escena",
+  action: "acción",
+  char: "personaje",
+  dialog: "diálogo",
+  paren: "nota",
+  acotation: "acotación",
 };
 
 const SLASH_COMMANDS = {
-  "/escena":    "scene",
-  "/accion":    "action",
+  "/escena": "scene",
+  "/accion": "action",
   "/personaje": "char",
-  "/dialogo":   "dialog",
-  "/dialog":    "dialog",
-  "/nota":      "paren",
-  "/acotacion": "acotation"
+  "/dialogo": "dialog",
+  "/dialog": "dialog",
+  "/nota": "paren",
+  "/acotacion": "acotation",
 };
 
-const BLOCK_ORDER = [
-  "action",
-  "char",
-  "dialog",
-  "paren",
-  "scene",
-  "acotation"
-];
+const BLOCK_ORDER = ["action", "char", "dialog", "paren", "scene", "acotation"];
 
 /* ======================================================== */
 /* PAGINATION ENGINE                                        */
@@ -67,11 +54,11 @@ const PAGE_CONTENT_HEIGHT = 900; // px of usable space per page
 // Approximate rendered height of each block type
 function estimateBlockHeight(block) {
   const CHAR_PER_LINE = 62;
-  const LINE_HEIGHT   = 26;
-  const BASE_PADDING  = 32; // block padding top+bottom
-  const LABEL_HEIGHT  = 18;
+  const LINE_HEIGHT = 26;
+  const BASE_PADDING = 32; // block padding top+bottom
+  const LABEL_HEIGHT = 18;
 
-  const text  = block.val || "";
+  const text = block.val || "";
   const chars = text.length || 1;
   const lines = Math.max(1, Math.ceil(chars / CHAR_PER_LINE));
 
@@ -106,8 +93,8 @@ function estimateBlockHeight(block) {
 }
 
 function paginateBlocks(blocks) {
-  const pages  = [];
-  let current  = [];
+  const pages = [];
+  let current = [];
   let usedHeight = 0;
 
   for (const block of blocks) {
@@ -120,14 +107,14 @@ function paginateBlocks(blocks) {
       current.length > 0
     ) {
       pages.push(current);
-      current    = [block];
+      current = [block];
       usedHeight = h;
       continue;
     }
 
     if (usedHeight + h > PAGE_CONTENT_HEIGHT && current.length > 0) {
       pages.push(current);
-      current    = [block];
+      current = [block];
       usedHeight = h;
     } else {
       current.push(block);
@@ -154,7 +141,7 @@ function ScriptBlock({
   onKeyDown,
   blockRef,
   characterSuggestions,
-  onSelectCharacter
+  onSelectCharacter,
 }) {
   const taRef = useRef(null);
 
@@ -226,7 +213,7 @@ function ScriptPage({
   onUpdate,
   onKeyDown,
   onAdd,
-  onRemove
+  onRemove,
 }) {
   return (
     <div className="script-page" data-page={pageNumber}>
@@ -241,7 +228,7 @@ function ScriptPage({
               ? characterNames.filter(
                   (c) =>
                     c.startsWith(block.val.toUpperCase()) &&
-                    c !== block.val.toUpperCase()
+                    c !== block.val.toUpperCase(),
                 )
               : [];
 
@@ -371,42 +358,50 @@ function CreditsPage({ credits, setCredits }) {
 /* ======================================================== */
 
 export default function Editor({
-  initTitle    = "Sin título",
+  initTitle = "Sin título",
   initTemplate,
-  onBack
+  initProject = null,
+  onBack,
+  onSaveProject,
 }) {
-
   /* -------------------------------------------------- */
   /* STATE                                              */
   /* -------------------------------------------------- */
 
-  const [blocks, setBlocks] = useState([
-    { id: 1, type: "scene",  val: "INT. APARTAMENTO — NOCHE" },
-    { id: 2, type: "action", val: "La lluvia golpea las ventanas." }
-  ]);
+  const [project, setProject] = useState(initProject);
 
-  const [nextId,          setNextId]          = useState(3);
-  const [activeId,        setActiveId]        = useState(1);
-  const [showCredits,     setShowCredits]     = useState(true);
-  const [paperMode,       setPaperMode]       = useState(false);
-  const [leftCollapsed,   setLeftCollapsed]   = useState(false);
-  const [rightCollapsed,  setRightCollapsed]  = useState(false);
-  const [saved,           setSaved]           = useState(false);
-  const [rightTab,        setRightTab]        = useState("stats");
-  const [history,         setHistory]         = useState([]);
-  const [future,          setFuture]          = useState([]);
-
-  const [credits, setCredits] = useState({
-    title:   initTitle,
-    writer:  "",
-    version: "Borrador 1",
-    date:    new Date().toLocaleDateString(),
-    contact: ""
+  const [blocks, setBlocks] = useState(() => {
+    if (initProject?.script?.blocks?.length > 0) {
+      return initProject.script.blocks;
+    }
+    return [
+      { id: 1, type: "scene", val: "INT. APARTAMENTO — NOCHE" },
+      { id: 2, type: "action", val: "La lluvia golpea las ventanas." },
+    ];
   });
 
-  const dragId      = useRef(null);
+  const [nextId, setNextId] = useState(3);
+  const [activeId, setActiveId] = useState(1);
+  const [showCredits, setShowCredits] = useState(true);
+  const [paperMode, setPaperMode] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [rightTab, setRightTab] = useState("stats");
+  const [history, setHistory] = useState([]);
+  const [future, setFuture] = useState([]);
+
+  const [credits, setCredits] = useState(() => ({
+    title: initProject?.script?.credits?.title || initTitle,
+    writer: initProject?.script?.credits?.writer || "",
+    version: initProject?.script?.credits?.version || "Borrador 1",
+    date: initProject?.script?.credits?.date || new Date().toLocaleDateString(),
+    contact: initProject?.script?.credits?.contact || "",
+  }));
+
+  const dragId = useRef(null);
   const dragSceneId = useRef(null);
-  const refs        = useRef({});
+  const refs = useRef({});
 
   /* -------------------------------------------------- */
   /* HISTORY                                            */
@@ -439,17 +434,16 @@ export default function Editor({
 
   const scenes = useMemo(
     () => blocks.filter((b) => b.type === "scene"),
-    [blocks]
+    [blocks],
   );
 
   const wordCount = useMemo(
     () =>
       blocks.reduce(
-        (acc, b) =>
-          acc + b.val.trim().split(/\s+/).filter(Boolean).length,
-        0
+        (acc, b) => acc + b.val.trim().split(/\s+/).filter(Boolean).length,
+        0,
       ),
-    [blocks]
+    [blocks],
   );
 
   const characterNames = useMemo(
@@ -458,15 +452,15 @@ export default function Editor({
         blocks
           .filter((b) => b.type === "char")
           .map((b) => b.val.toUpperCase())
-          .filter(Boolean)
-      )
+          .filter(Boolean),
+      ),
     ],
-    [blocks]
+    [blocks],
   );
 
   const activeBlock = useMemo(
     () => blocks.find((b) => b.id === activeId),
-    [blocks, activeId]
+    [blocks, activeId],
   );
 
   // Real paginated pages
@@ -482,13 +476,20 @@ export default function Editor({
 
   const getNextType = useCallback((type) => {
     switch (type) {
-      case "scene":     return "action";
-      case "action":    return "action";
-      case "char":      return "dialog";
-      case "dialog":    return "char";
-      case "paren":     return "dialog";
-      case "acotation": return "scene";
-      default:          return "action";
+      case "scene":
+        return "action";
+      case "action":
+        return "action";
+      case "char":
+        return "dialog";
+      case "dialog":
+        return "char";
+      case "paren":
+        return "dialog";
+      case "acotation":
+        return "scene";
+      default:
+        return "action";
     }
   }, []);
 
@@ -497,9 +498,7 @@ export default function Editor({
   /* -------------------------------------------------- */
 
   const updateBlock = useCallback((id, val) => {
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, val } : b))
-    );
+    setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, val } : b)));
   }, []);
 
   const addBlock = useCallback(
@@ -507,9 +506,9 @@ export default function Editor({
       snapshot();
 
       const newBlock = {
-        id:  nextId,
+        id: nextId,
         type,
-        val: type === "acotation" ? "CORTE A:" : ""
+        val: type === "acotation" ? "CORTE A:" : "",
       };
 
       setNextId((n) => n + 1);
@@ -517,7 +516,7 @@ export default function Editor({
       setBlocks((prev) => {
         if (afterId == null) return [...prev, newBlock];
 
-        const idx  = prev.findIndex((b) => b.id === afterId);
+        const idx = prev.findIndex((b) => b.id === afterId);
         const copy = [...prev];
         copy.splice(idx + 1, 0, newBlock);
         return copy;
@@ -525,7 +524,7 @@ export default function Editor({
 
       focusBlock(newBlock.id);
     },
-    [snapshot, nextId, focusBlock]
+    [snapshot, nextId, focusBlock],
   );
 
   const removeBlock = useCallback(
@@ -533,13 +532,13 @@ export default function Editor({
       if (blocks.length <= 1) return;
       snapshot();
 
-      const idx       = blocks.findIndex((b) => b.id === id);
+      const idx = blocks.findIndex((b) => b.id === id);
       const nextFocus = blocks[idx - 1] || blocks[idx + 1];
 
       setBlocks((prev) => prev.filter((b) => b.id !== id));
       if (nextFocus) focusBlock(nextFocus.id);
     },
-    [blocks, snapshot, focusBlock]
+    [blocks, snapshot, focusBlock],
   );
 
   /* -------------------------------------------------- */
@@ -548,20 +547,36 @@ export default function Editor({
 
   const navigateBlock = useCallback(
     (currentId, direction) => {
-      const idx    = blocks.findIndex((b) => b.id === currentId);
+      const idx = blocks.findIndex((b) => b.id === currentId);
       const target = blocks[idx + direction];
       if (target) focusBlock(target.id);
     },
-    [blocks, focusBlock]
+    [blocks, focusBlock],
   );
 
   /* -------------------------------------------------- */
   /* KEYBOARD                                           */
   /* -------------------------------------------------- */
 
+  const handleSave = useCallback(() => {
+    if (typeof onSaveProject === "function") {
+      const savedProject = onSaveProject({
+        id: project?.id,
+        name: credits.title || "Sin título",
+        template: initTemplate,
+        blocks,
+        credits,
+      });
+      if (savedProject) {
+        setProject(savedProject);
+      }
+    }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1600);
+  }, [onSaveProject, project?.id, credits, blocks, initTemplate]);
+
   const handleKeyDown = useCallback(
     (e, block) => {
-
       // slash commands
       if (e.key === " " && SLASH_COMMANDS[block.val.trim()]) {
         e.preventDefault();
@@ -569,8 +584,8 @@ export default function Editor({
           prev.map((b) =>
             b.id === block.id
               ? { ...b, type: SLASH_COMMANDS[block.val.trim()], val: "" }
-              : b
-          )
+              : b,
+          ),
         );
         return;
       }
@@ -590,9 +605,7 @@ export default function Editor({
             (BLOCK_ORDER.indexOf(block.type) + 1) % BLOCK_ORDER.length
           ];
         setBlocks((prev) =>
-          prev.map((b) =>
-            b.id === block.id ? { ...b, type: nextType } : b
-          )
+          prev.map((b) => (b.id === block.id ? { ...b, type: nextType } : b)),
         );
         return;
       }
@@ -628,12 +641,11 @@ export default function Editor({
       // save
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        setSaved(true);
-        setTimeout(() => setSaved(false), 1600);
+        handleSave();
         return;
       }
     },
-    [addBlock, getNextType, removeBlock, navigateBlock, redo, undo]
+    [addBlock, getNextType, removeBlock, navigateBlock, redo, undo],
   );
 
   /* -------------------------------------------------- */
@@ -655,7 +667,7 @@ export default function Editor({
 
       return group;
     },
-    [blocks]
+    [blocks],
   );
 
   const reorderScenes = useCallback(
@@ -665,7 +677,7 @@ export default function Editor({
       snapshot();
 
       const fromGroup = getSceneGroup(fromSceneId);
-      const fromIds   = new Set(fromGroup.map((b) => b.id));
+      const fromIds = new Set(fromGroup.map((b) => b.id));
 
       // blocks without the "from" group
       const withoutFrom = blocks.filter((b) => !fromIds.has(b.id));
@@ -682,7 +694,7 @@ export default function Editor({
       result.splice(insertIdx, 0, ...fromGroup);
       setBlocks(result);
     },
-    [blocks, snapshot, getSceneGroup]
+    [blocks, snapshot, getSceneGroup],
   );
 
   /* -------------------------------------------------- */
@@ -735,79 +747,78 @@ export default function Editor({
     const creditsChildren = [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing:   { before: 2880, after: 480 },
-        children:  [
+        spacing: { before: 2880, after: 480 },
+        children: [
           new TextRun({
-            text:  credits.title.toUpperCase(),
-            bold:  true,
-            size:  52,
-            font:  "Courier Prime"
-          })
-        ]
+            text: credits.title.toUpperCase(),
+            bold: true,
+            size: 52,
+            font: "Courier Prime",
+          }),
+        ],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing:   { before: 480, after: 240 },
-        children:  [
+        spacing: { before: 480, after: 240 },
+        children: [
           new TextRun({
             text: "Escrito por",
             size: 24,
-            font: "Courier Prime"
-          })
-        ]
+            font: "Courier Prime",
+          }),
+        ],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing:   { before: 240, after: 2880 },
-        children:  [
+        spacing: { before: 240, after: 2880 },
+        children: [
           new TextRun({
             text: credits.writer || "—",
             bold: true,
             size: 28,
-            font: "Courier Prime"
-          })
-        ]
+            font: "Courier Prime",
+          }),
+        ],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing:   { before: 0, after: 240 },
-        children:  [
+        spacing: { before: 0, after: 240 },
+        children: [
           new TextRun({
             text: `${credits.version} — ${credits.date}`,
             size: 20,
-            font: "Courier Prime"
-          })
-        ]
+            font: "Courier Prime",
+          }),
+        ],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children:  [
+        children: [
           new TextRun({
             text: credits.contact || "",
             size: 20,
-            font: "Courier Prime"
-          })
-        ]
-      })
+            font: "Courier Prime",
+          }),
+        ],
+      }),
     ];
 
     const scriptChildren = blocks.map((b, i) => {
       const isFirst = i === 0;
 
       switch (b.type) {
-
         case "scene":
           return new Paragraph({
             pageBreakBefore: !isFirst,
             spacing: { before: 480, after: 240 },
             children: [
               new TextRun({
-                text:  b.val.toUpperCase(),
-                bold:  true,
-                size:  24,
-                font:  "Courier Prime"
-              })
-            ]
+                text: b.val.toUpperCase(),
+                bold: true,
+                size: 24,
+                font: "Courier Prime",
+              }),
+            ],
           });
 
         case "action":
@@ -817,73 +828,73 @@ export default function Editor({
               new TextRun({
                 text: b.val,
                 size: 24,
-                font: "Courier Prime"
-              })
-            ]
+                font: "Courier Prime",
+              }),
+            ],
           });
 
         case "char":
           return new Paragraph({
             alignment: AlignmentType.LEFT,
-            indent:    { left: 3600 },
-            spacing:   { before: 240, after: 0 },
-            children:  [
+            indent: { left: 3600 },
+            spacing: { before: 240, after: 0 },
+            children: [
               new TextRun({
-                text:  b.val.toUpperCase(),
-                bold:  true,
-                size:  24,
-                font:  "Courier Prime"
-              })
-            ]
+                text: b.val.toUpperCase(),
+                bold: true,
+                size: 24,
+                font: "Courier Prime",
+              }),
+            ],
           });
 
         case "dialog":
           return new Paragraph({
-            indent:  { left: 1800, right: 1440 },
+            indent: { left: 1800, right: 1440 },
             spacing: { before: 0, after: 0 },
             children: [
               new TextRun({
                 text: b.val,
                 size: 24,
-                font: "Courier Prime"
-              })
-            ]
+                font: "Courier Prime",
+              }),
+            ],
           });
 
         case "paren":
           return new Paragraph({
-            indent:  { left: 2520, right: 2160 },
+            indent: { left: 2520, right: 2160 },
             spacing: { before: 0, after: 0 },
             children: [
               new TextRun({
-                text:   `(${b.val})`,
+                text: `(${b.val})`,
                 italics: true,
-                size:   24,
-                font:   "Courier Prime"
-              })
-            ]
+                size: 24,
+                font: "Courier Prime",
+              }),
+            ],
           });
 
         case "acotation":
           return new Paragraph({
             alignment: AlignmentType.RIGHT,
-            spacing:   { before: 480, after: 480 },
-            children:  [
+            spacing: { before: 480, after: 480 },
+            children: [
               new TextRun({
-                text:  b.val.toUpperCase(),
-                bold:  true,
-                size:  24,
-                font:  "Courier Prime"
-              })
-            ]
+                text: b.val.toUpperCase(),
+                bold: true,
+                size: 24,
+                font: "Courier Prime",
+              }),
+            ],
           });
 
         default:
           return new Paragraph({
             spacing: { before: 240, after: 240 },
             children: [
-              new TextRun({ text: b.val, size: 24, font: "Courier Prime" })
-            ]
+              new TextRun({ text: b.val, size: 24, font: "Courier Prime" }),
+            ],
           });
       }
     });
@@ -895,30 +906,30 @@ export default function Editor({
           properties: {
             page: {
               margin: {
-                top:    1440,
+                top: 1440,
                 bottom: 1440,
-                left:   2160,
-                right:  1440
-              }
-            }
+                left: 2160,
+                right: 1440,
+              },
+            },
           },
-          children: creditsChildren
+          children: creditsChildren,
         },
         // ---- Section 2: Script ----
         {
           properties: {
             page: {
               margin: {
-                top:    1440,
+                top: 1440,
                 bottom: 1440,
-                left:   2160,
-                right:  1440
-              }
-            }
+                left: 2160,
+                right: 1440,
+              },
+            },
           },
-          children: scriptChildren
-        }
-      ]
+          children: scriptChildren,
+        },
+      ],
     });
 
     const blob = await Packer.toBlob(doc);
@@ -966,23 +977,19 @@ export default function Editor({
 
   const shellClasses = [
     "editor-shell",
-    paperMode      ? "paper-mode"      : "",
-    leftCollapsed  ? "left-collapsed"  : "",
-    rightCollapsed ? "right-collapsed" : ""
+    paperMode ? "paper-mode" : "",
+    leftCollapsed ? "left-collapsed" : "",
+    rightCollapsed ? "right-collapsed" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   return (
     <div className={shellClasses}>
-
       {/* ===================== LEFT ===================== */}
       <aside className={`ed-left${leftCollapsed ? " collapsed" : ""}`}>
-
         <div className="ed-panel-header">
-          {!leftCollapsed && (
-            <div className="ed-panel-title">Escenas</div>
-          )}
+          {!leftCollapsed && <div className="ed-panel-title">Escenas</div>}
           <button
             className="ed-icon-btn"
             onClick={() => setLeftCollapsed((v) => !v)}
@@ -997,8 +1004,10 @@ export default function Editor({
               <div
                 key={scene.id}
                 draggable
-                onDragStart={() => { dragSceneId.current = scene.id; }}
-                onDragOver={(e)  => e.preventDefault()}
+                onDragStart={() => {
+                  dragSceneId.current = scene.id;
+                }}
+                onDragOver={(e) => e.preventDefault()}
                 onDrop={() => {
                   if (dragSceneId.current !== null) {
                     reorderScenes(dragSceneId.current, scene.id);
@@ -1023,7 +1032,6 @@ export default function Editor({
 
       {/* ===================== CENTER ===================== */}
       <main className="ed-center">
-
         {/* TOOLBAR */}
         <div className="ed-toolbar">
           <div className="ed-toolbar-group">
@@ -1058,11 +1066,19 @@ export default function Editor({
 
           <div className="ed-toolbar-spacer" />
 
-          <button className="ed-tb-btn" onClick={undo}>↶ Undo</button>
-          <button className="ed-tb-btn" onClick={redo}>↷ Redo</button>
-          <button className="ed-tb-btn" onClick={exportTXT}>TXT</button>
-          <button className="ed-tb-btn" onClick={exportDOCX}>DOCX</button>
-          <button className="ed-tb-btn ed-tb-save">
+          <button className="ed-tb-btn" onClick={undo}>
+            ↶ Undo
+          </button>
+          <button className="ed-tb-btn" onClick={redo}>
+            ↷ Redo
+          </button>
+          <button className="ed-tb-btn" onClick={exportTXT}>
+            TXT
+          </button>
+          <button className="ed-tb-btn" onClick={exportDOCX}>
+            DOCX
+          </button>
+          <button className="ed-tb-btn ed-tb-save" onClick={handleSave}>
             {saved ? "✓ Guardado" : "💾 Guardar"}
           </button>
         </div>
@@ -1083,7 +1099,6 @@ export default function Editor({
         {/* BODY — paginated */}
         <div className="ed-body">
           <div className="ed-pages-container">
-
             {/* CREDITS PAGE */}
             {showCredits && (
               <CreditsPage credits={credits} setCredits={setCredits} />
@@ -1110,12 +1125,12 @@ export default function Editor({
             {/* QUICK ADD */}
             <div className="sp-quick-add">
               {[
-                ["scene",     "🎬 Escena"],
-                ["action",    "📝 Acción"],
-                ["char",      "👤 Personaje"],
-                ["dialog",    "💬 Diálogo"],
-                ["paren",     "() Nota"],
-                ["acotation", "⏭ Acotación"]
+                ["scene", "🎬 Escena"],
+                ["action", "📝 Acción"],
+                ["char", "👤 Personaje"],
+                ["dialog", "💬 Diálogo"],
+                ["paren", "() Nota"],
+                ["acotation", "⏭ Acotación"],
               ].map(([type, label]) => (
                 <button
                   key={type}
@@ -1126,7 +1141,6 @@ export default function Editor({
                 </button>
               ))}
             </div>
-
           </div>
         </div>
 
@@ -1145,27 +1159,24 @@ export default function Editor({
 
       {/* ===================== RIGHT ===================== */}
       <aside className={`ed-right${rightCollapsed ? " collapsed" : ""}`}>
-
         <div className="ed-right-content">
-
-          
-
           {/* CHARACTERS */}
           {rightTab === "characters" && (
             <div className="ed-r-sec">
               <div className="ed-r-ttl">Personajes</div>
               {characterNames.length === 0 && (
-                <div className="ed-r-empty">
-                  Ningún personaje aún
-                </div>
+                <div className="ed-r-empty">Ningún personaje aún</div>
               )}
               {characterNames.map((name) => (
                 <div className="ed-r-row" key={name}>
                   <span className="ed-r-lbl">{name}</span>
                   <span className="ed-r-val ed-r-char-count">
-                    {blocks.filter(
-                      (b) => b.type === "char" && b.val.toUpperCase() === name
-                    ).length}
+                    {
+                      blocks.filter(
+                        (b) =>
+                          b.type === "char" && b.val.toUpperCase() === name,
+                      ).length
+                    }
                     ×
                   </span>
                 </div>
@@ -1179,19 +1190,19 @@ export default function Editor({
               <div className="ed-r-ttl">Atajos de teclado</div>
 
               {[
-                ["Enter",            "Nuevo bloque"],
-                ["Tab",              "Cambiar tipo"],
-                ["Backspace vacío",  "Eliminar bloque"],
-                ["Cmd/Ctrl + Z",     "Undo"],
-                ["Cmd/Ctrl + Shift+Z","Redo"],
-                ["Cmd/Ctrl + S",     "Guardar"],
-                ["Cmd/Ctrl + ↑/↓",  "Navegar bloques"],
-                ["/escena",          "→ Escena"],
-                ["/accion",          "→ Acción"],
-                ["/personaje",       "→ Personaje"],
-                ["/dialogo",         "→ Diálogo"],
-                ["/nota",            "→ Nota"],
-                ["/acotacion",       "→ Acotación"]
+                ["Enter", "Nuevo bloque"],
+                ["Tab", "Cambiar tipo"],
+                ["Backspace vacío", "Eliminar bloque"],
+                ["Cmd/Ctrl + Z", "Undo"],
+                ["Cmd/Ctrl + Shift+Z", "Redo"],
+                ["Cmd/Ctrl + S", "Guardar"],
+                ["Cmd/Ctrl + ↑/↓", "Navegar bloques"],
+                ["/escena", "→ Escena"],
+                ["/accion", "→ Acción"],
+                ["/personaje", "→ Personaje"],
+                ["/dialogo", "→ Diálogo"],
+                ["/nota", "→ Nota"],
+                ["/acotacion", "→ Acotación"],
               ].map(([key, desc]) => (
                 <div className="ed-r-row" key={key}>
                   <span className="ed-r-lbl ed-r-key">{key}</span>
@@ -1200,10 +1211,8 @@ export default function Editor({
               ))}
             </div>
           )}
-
         </div>
       </aside>
-
     </div>
   );
 }
