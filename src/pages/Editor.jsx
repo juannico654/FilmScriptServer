@@ -12,7 +12,10 @@ import {
   HeadingLevel,
 } from "docx";
 
+import { jsPDF } from "jspdf";
+
 import { saveAs } from "file-saver";
+import API_BASE from "../utils/api";
 
 /* ======================================================== */
 /* CONSTANTS                                                */
@@ -38,6 +41,22 @@ const SLASH_COMMANDS = {
 };
 
 const BLOCK_ORDER = ["action", "char", "dialog", "paren", "scene", "acotation"];
+
+const createEmptyAIInsights = () => ({
+  summary: {
+    logline: "",
+    shortSynopsis: "",
+    sceneSummary: [],
+  },
+  feedback: {
+    overall: "",
+    strengths: [],
+    improvements: [],
+    nextSteps: [],
+  },
+  generatedAt: "",
+  model: "",
+});
 
 /* ======================================================== */
 /* PAGINATION ENGINE                                        */
@@ -142,6 +161,8 @@ function ScriptBlock({
   blockRef,
   characterSuggestions,
   onSelectCharacter,
+  commentCount = 0,
+  onComment,
 }) {
   const taRef = useRef(null);
 
@@ -164,10 +185,22 @@ function ScriptBlock({
 
   return (
     <div
-      className={`sblk sblk-${block.type}${active ? " is-active" : ""}`}
+      className={`sblk sblk-${block.type}${active ? " is-active" : ""}${commentCount > 0 ? " has-comments" : ""}`}
       ref={blockRef}
     >
       <div className="sblk-lbl">{LABELS[block.type]}</div>
+      {commentCount > 0 && (
+        <button
+          className="sblk-comment-badge"
+          onClick={(e) => {
+            e.stopPropagation();
+            onComment(block.id);
+          }}
+          title={`${commentCount} comentario${commentCount !== 1 ? "s" : ""}`}
+        >
+          💬 {commentCount}
+        </button>
+      )}
 
       <textarea
         ref={taRef}
@@ -214,6 +247,14 @@ function ScriptPage({
   onKeyDown,
   onAdd,
   onRemove,
+  inlineComments = [],
+  commentingBlockId = null,
+  onToggleComment,
+  commentDraft = "",
+  onCommentDraftChange,
+  onSubmitComment,
+  onResolveComment,
+  onDeleteComment,
 }) {
   return (
     <div className="script-page" data-page={pageNumber}>
@@ -232,35 +273,129 @@ function ScriptPage({
                 )
               : [];
 
-          return (
-            <div key={block.id} className="sp-block-wrap">
-              <ScriptBlock
-                block={block}
-                active={activeId === block.id}
-                blockRef={(el) => (refs.current[block.id] = el)}
-                onFocus={onFocus}
-                onChange={onUpdate}
-                onKeyDown={onKeyDown}
-                characterSuggestions={suggestions}
-                onSelectCharacter={(id, value) => onUpdate(id, value)}
-              />
+          const blockComments = inlineComments.filter(
+            (c) => c.blockId === block.id,
+          );
+          const isCommenting = commentingBlockId === block.id;
 
-              <div className="sp-block-actions">
-                <button
-                  className="sp-bact"
-                  title="Agregar bloque"
-                  onClick={() => onAdd("action", block.id)}
-                >
-                  ＋
-                </button>
-                <button
-                  className="sp-bact danger"
-                  title="Eliminar bloque"
-                  onClick={() => onRemove(block.id)}
-                >
-                  🗑
-                </button>
+          return (
+            <div key={block.id} className="sp-block-outer">
+              <div className="sp-block-wrap">
+                <ScriptBlock
+                  block={block}
+                  active={activeId === block.id}
+                  blockRef={(el) => (refs.current[block.id] = el)}
+                  onFocus={onFocus}
+                  onChange={onUpdate}
+                  onKeyDown={onKeyDown}
+                  characterSuggestions={suggestions}
+                  onSelectCharacter={(id, value) => onUpdate(id, value)}
+                  commentCount={blockComments.length}
+                  onComment={onToggleComment}
+                />
+
+                <div className="sp-block-actions">
+                  <button
+                    className="sp-bact"
+                    title="Agregar bloque"
+                    onClick={() => onAdd("action", block.id)}
+                  >
+                    ＋
+                  </button>
+                  <button
+                    className="sp-bact danger"
+                    title="Eliminar bloque"
+                    onClick={() => onRemove(block.id)}
+                  >
+                    🗑
+                  </button>
+                  <button
+                    className={`sp-bact comment${blockComments.length > 0 ? " comment-on" : ""}`}
+                    title="Comentar este bloque"
+                    onClick={() => onToggleComment(block.id)}
+                  >
+                    💬
+                  </button>
+                </div>
               </div>
+
+              {/* Inline comment form */}
+              {isCommenting && (
+                <div className="sp-comment-form">
+                  <div className="sp-cf-header">
+                    <span>
+                      Comentario en <strong>{LABELS[block.type]}</strong>
+                    </span>
+                    <button
+                      className="sp-cf-close"
+                      onClick={() => onToggleComment(null)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <textarea
+                    className="sp-cf-input"
+                    placeholder="Escribe un comentario…"
+                    value={commentDraft}
+                    onChange={(e) => onCommentDraftChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && e.ctrlKey)
+                        onSubmitComment(block.id);
+                      if (e.key === "Escape") onToggleComment(null);
+                    }}
+                    autoFocus
+                    rows={2}
+                  />
+                  <div className="sp-cf-footer">
+                    <span className="sp-cf-hint">Ctrl+Enter para enviar</span>
+                    <button
+                      className="sp-cf-submit"
+                      onClick={() => onSubmitComment(block.id)}
+                      disabled={!commentDraft.trim()}
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Comment threads visible in the editor */}
+              {blockComments.length > 0 && (
+                <div className="sp-comment-thread">
+                  {blockComments.map((c) => (
+                    <div
+                      key={c.id}
+                      className={`sp-cmt-chip${c.resolved ? " resolved" : ""}`}
+                    >
+                      <div className="sp-cmt-chip-head">
+                        <span className="sp-cmt-av">{c.initials}</span>
+                        <span className="sp-cmt-author">{c.author}</span>
+                        <span className="sp-cmt-time">{c.time}</span>
+                        {c.resolved && (
+                          <span className="sp-cmt-resolved-badge">
+                            ✓ Resuelto
+                          </span>
+                        )}
+                      </div>
+                      <div className="sp-cmt-text">{c.text}</div>
+                      <div className="sp-cmt-actions">
+                        <button
+                          className="sp-cmt-act"
+                          onClick={() => onResolveComment(c.id)}
+                        >
+                          {c.resolved ? "↩ Reabrir" : "✓ Resolver"}
+                        </button>
+                        <button
+                          className="sp-cmt-act danger"
+                          onClick={() => onDeleteComment(c.id)}
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -363,6 +498,7 @@ export default function Editor({
   initProject = null,
   onBack,
   onSaveProject,
+  currentUser = null,
 }) {
   /* -------------------------------------------------- */
   /* STATE                                              */
@@ -387,6 +523,8 @@ export default function Editor({
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [rightTab, setRightTab] = useState("stats");
   const [history, setHistory] = useState([]);
   const [future, setFuture] = useState([]);
@@ -398,6 +536,17 @@ export default function Editor({
     date: initProject?.script?.credits?.date || new Date().toLocaleDateString(),
     contact: initProject?.script?.credits?.contact || "",
   }));
+
+  const [inlineComments, setInlineComments] = useState(
+    () => initProject?.script?.inlineComments || [],
+  );
+  const [aiInsights, setAiInsights] = useState(
+    () => initProject?.script?.aiInsights || createEmptyAIInsights(),
+  );
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [commentingBlockId, setCommentingBlockId] = useState(null);
+  const [commentDraft, setCommentDraft] = useState("");
 
   const dragId = useRef(null);
   const dragSceneId = useRef(null);
@@ -558,22 +707,138 @@ export default function Editor({
   /* KEYBOARD                                           */
   /* -------------------------------------------------- */
 
-  const handleSave = useCallback(() => {
-    if (typeof onSaveProject === "function") {
-      const savedProject = onSaveProject({
-        id: project?.id,
-        name: credits.title || "Sin título",
-        template: initTemplate,
-        blocks,
-        credits,
-      });
-      if (savedProject) {
-        setProject(savedProject);
-      }
+  const addInlineComment = useCallback(
+    (blockId) => {
+      if (!commentDraft.trim()) return;
+      const block = blocks.find((b) => b.id === blockId);
+      const comment = {
+        id: Date.now(),
+        blockId,
+        blockType: block?.type || "action",
+        text: commentDraft.trim(),
+        author: currentUser?.name || "Guionista",
+        initials: currentUser?.name
+          ? currentUser.name.slice(0, 2).toUpperCase()
+          : "GS",
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        resolved: false,
+      };
+      setInlineComments((prev) => [...prev, comment]);
+      setCommentingBlockId(null);
+      setCommentDraft("");
+    },
+    [blocks, commentDraft, currentUser],
+  );
+
+  const toggleInlineComment = useCallback((blockId) => {
+    setCommentingBlockId((prev) => (prev === blockId ? null : blockId));
+    setCommentDraft("");
+  }, []);
+
+  const resolveInlineComment = useCallback((commentId) => {
+    setInlineComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId ? { ...c, resolved: !c.resolved } : c,
+      ),
+    );
+  }, []);
+
+  const deleteInlineComment = useCallback((commentId) => {
+    setInlineComments((prev) => prev.filter((c) => c.id !== commentId));
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (isSaving) return;
+    if (project?.canEdit === false) {
+      setSaveError("Este proyecto está en modo solo lectura.");
+      return;
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1600);
-  }, [onSaveProject, project?.id, credits, blocks, initTemplate]);
+
+    setSaveError("");
+    setIsSaving(true);
+
+    try {
+      let savedProject = null;
+
+      if (typeof onSaveProject === "function") {
+        savedProject = await onSaveProject({
+          id: project?.id,
+          name: credits.title || "Sin título",
+          template: initTemplate,
+          blocks,
+          credits,
+          inlineComments,
+          aiInsights,
+        });
+      }
+
+      if (!savedProject) {
+        throw new Error("No se pudo guardar el proyecto.");
+      }
+
+      setProject(savedProject);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1600);
+    } catch (error) {
+      setSaveError(error.message || "No se pudo guardar el proyecto.");
+      setSaved(false);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    isSaving,
+    project,
+    onSaveProject,
+    credits,
+    blocks,
+    initTemplate,
+    inlineComments,
+    aiInsights,
+  ]);
+
+  const generateAIInsights = useCallback(async () => {
+    setAiLoading(true);
+    setAiError("");
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error(
+          "No existe token de autenticación. Inicia sesión de nuevo.",
+        );
+      }
+
+      const response = await fetch(`${API_BASE}/api/ai/script-insights`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: credits.title || "Sin título",
+          script: {
+            blocks,
+            credits,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo generar el análisis de IA");
+      }
+
+      setAiInsights(data.insights || createEmptyAIInsights());
+      setRightTab("ai");
+    } catch (error) {
+      setAiError(error.message || "No se pudo generar el análisis del guion.");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [blocks, credits]);
 
   const handleKeyDown = useCallback(
     (e, block) => {
@@ -645,7 +910,7 @@ export default function Editor({
         return;
       }
     },
-    [addBlock, getNextType, removeBlock, navigateBlock, redo, undo],
+    [addBlock, getNextType, removeBlock, navigateBlock, redo, undo, handleSave],
   );
 
   /* -------------------------------------------------- */
@@ -936,6 +1201,120 @@ export default function Editor({
     saveAs(blob, `${credits.title}.docx`);
   }, [blocks, credits]);
 
+  const exportAISummaryDOCX = useCallback(async () => {
+    if (!aiInsights?.summary?.logline && !aiInsights?.summary?.shortSynopsis) {
+      return;
+    }
+
+    const doc = new Document({
+      sections: [
+        {
+          children: [
+            new Paragraph({
+              heading: HeadingLevel.TITLE,
+              spacing: { after: 240 },
+              children: [
+                new TextRun({
+                  text: `Resumen IA - ${credits.title || "Sin título"}`,
+                  bold: true,
+                }),
+              ],
+            }),
+            new Paragraph({
+              spacing: { after: 160 },
+              children: [
+                new TextRun({
+                  text: `Generado: ${aiInsights.generatedAt || new Date().toLocaleString()}`,
+                }),
+              ],
+            }),
+            new Paragraph({
+              heading: HeadingLevel.HEADING_1,
+              children: [new TextRun({ text: "Logline", bold: true })],
+            }),
+            new Paragraph({
+              text: aiInsights.summary.logline || "Sin logline.",
+            }),
+            new Paragraph({
+              heading: HeadingLevel.HEADING_1,
+              children: [new TextRun({ text: "Sinopsis breve", bold: true })],
+            }),
+            new Paragraph({
+              text: aiInsights.summary.shortSynopsis || "Sin sinopsis.",
+            }),
+            new Paragraph({
+              heading: HeadingLevel.HEADING_1,
+              children: [
+                new TextRun({ text: "Resumen por escenas", bold: true }),
+              ],
+            }),
+            ...(aiInsights.summary.sceneSummary || []).map(
+              (item, index) =>
+                new Paragraph({
+                  text: `${index + 1}. ${item}`,
+                  spacing: { after: 120 },
+                }),
+            ),
+          ],
+        },
+      ],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${credits.title || "guion"}-resumen-ia.docx`);
+  }, [aiInsights, credits.title]);
+
+  const exportAISummaryPDF = useCallback(() => {
+    if (!aiInsights?.summary?.logline && !aiInsights?.summary?.shortSynopsis) {
+      return;
+    }
+
+    const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const marginX = 48;
+    const maxWidth = 500;
+    let cursorY = 54;
+
+    const writeBlock = (title, text) => {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(13);
+      pdf.text(title, marginX, cursorY);
+      cursorY += 20;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(11);
+      const lines = pdf.splitTextToSize(text || "-", maxWidth);
+      pdf.text(lines, marginX, cursorY);
+      cursorY += lines.length * 15 + 18;
+      if (cursorY > 760) {
+        pdf.addPage();
+        cursorY = 54;
+      }
+    };
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(18);
+    pdf.text(`Resumen IA - ${credits.title || "Sin título"}`, marginX, cursorY);
+    cursorY += 28;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.text(
+      `Generado: ${aiInsights.generatedAt || new Date().toLocaleString()}`,
+      marginX,
+      cursorY,
+    );
+    cursorY += 28;
+
+    writeBlock("Logline", aiInsights.summary.logline);
+    writeBlock("Sinopsis breve", aiInsights.summary.shortSynopsis);
+    writeBlock(
+      "Resumen por escenas",
+      (aiInsights.summary.sceneSummary || [])
+        .map((item, index) => `${index + 1}. ${item}`)
+        .join("\n\n"),
+    );
+
+    pdf.save(`${credits.title || "guion"}-resumen-ia.pdf`);
+  }, [aiInsights, credits.title]);
+
   /* -------------------------------------------------- */
   /* GLOBAL SHORTCUTS                                   */
   /* -------------------------------------------------- */
@@ -1078,8 +1457,20 @@ export default function Editor({
           <button className="ed-tb-btn" onClick={exportDOCX}>
             DOCX
           </button>
-          <button className="ed-tb-btn ed-tb-save" onClick={handleSave}>
-            {saved ? "✓ Guardado" : "💾 Guardar"}
+          <button className="ed-tb-btn" onClick={generateAIInsights}>
+            {aiLoading ? "... IA" : "✨ IA"}
+          </button>
+          <button
+            className="ed-tb-btn ed-tb-save"
+            onClick={handleSave}
+            disabled={isSaving || project?.canEdit === false}
+            title={
+              project?.canEdit === false
+                ? "Proyecto en modo solo lectura"
+                : "Guardar proyecto"
+            }
+          >
+            {isSaving ? "Guardando..." : saved ? "✓ Guardado" : "💾 Guardar"}
           </button>
         </div>
 
@@ -1119,6 +1510,14 @@ export default function Editor({
                 onKeyDown={handleKeyDown}
                 onAdd={addBlock}
                 onRemove={removeBlock}
+                inlineComments={inlineComments}
+                commentingBlockId={commentingBlockId}
+                onToggleComment={toggleInlineComment}
+                commentDraft={commentDraft}
+                onCommentDraftChange={setCommentDraft}
+                onSubmitComment={addInlineComment}
+                onResolveComment={resolveInlineComment}
+                onDeleteComment={deleteInlineComment}
               />
             ))}
 
@@ -1154,12 +1553,199 @@ export default function Editor({
           <span>{scenes.length} escenas</span>
           <span>·</span>
           <span>{pages.length + (showCredits ? 1 : 0)} páginas</span>
+          {saveError && (
+            <>
+              <span>·</span>
+              <span style={{ color: "#e25b5b" }}>{saveError}</span>
+            </>
+          )}
         </div>
       </main>
 
       {/* ===================== RIGHT ===================== */}
       <aside className={`ed-right${rightCollapsed ? " collapsed" : ""}`}>
+        <div className="ed-right-header">
+          <button
+            className="ed-icon-btn"
+            onClick={() => setRightCollapsed((v) => !v)}
+            title={rightCollapsed ? "Expandir" : "Colapsar"}
+          >
+            ☰
+          </button>
+          {!rightCollapsed && (
+            <div className="ed-r-tabs">
+              {[
+                ["ai", "✨"],
+                ["stats", "📊"],
+                ["characters", "👤"],
+                ["comments", "💬"],
+                ["notes", "⌨"],
+              ].map(([tab, icon]) => (
+                <button
+                  key={tab}
+                  className={`ed-r-tab${rightTab === tab ? " on" : ""}`}
+                  onClick={() => setRightTab(tab)}
+                  title={tab}
+                >
+                  {icon}
+                  {tab === "comments" &&
+                    inlineComments.filter((c) => !c.resolved).length > 0 && (
+                      <span className="ed-r-tab-badge">
+                        {inlineComments.filter((c) => !c.resolved).length}
+                      </span>
+                    )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="ed-right-content">
+          {rightTab === "ai" && (
+            <div className="ed-r-sec">
+              <div className="ed-r-ttl">Asistente IA</div>
+
+              <div className="ed-ai-actions">
+                <button
+                  className="ed-ai-btn primary"
+                  onClick={generateAIInsights}
+                  disabled={aiLoading}
+                >
+                  {aiLoading ? "Analizando..." : "Generar feedback y resumen"}
+                </button>
+                <button
+                  className="ed-ai-btn"
+                  onClick={exportAISummaryPDF}
+                  disabled={
+                    !aiInsights?.summary?.logline &&
+                    !aiInsights?.summary?.shortSynopsis
+                  }
+                >
+                  Descargar PDF
+                </button>
+                <button
+                  className="ed-ai-btn"
+                  onClick={exportAISummaryDOCX}
+                  disabled={
+                    !aiInsights?.summary?.logline &&
+                    !aiInsights?.summary?.shortSynopsis
+                  }
+                >
+                  Descargar Word
+                </button>
+              </div>
+
+              {aiError && <div className="ed-ai-error">{aiError}</div>}
+
+              {!aiError &&
+                !aiLoading &&
+                !aiInsights?.summary?.logline &&
+                !aiInsights?.summary?.shortSynopsis && (
+                  <div className="ed-r-empty">
+                    Aún no hay análisis. Usa el botón de IA para obtener
+                    feedback del guion y un resumen descargable.
+                  </div>
+                )}
+
+              {(aiInsights?.summary?.logline ||
+                aiInsights?.summary?.shortSynopsis) && (
+                <div className="ed-ai-stack">
+                  <div className="ed-ai-card">
+                    <div className="ed-ai-card-title">Resumen</div>
+                    <div className="ed-ai-block">
+                      <span className="ed-ai-label">Logline</span>
+                      <p>{aiInsights.summary.logline || "-"}</p>
+                    </div>
+                    <div className="ed-ai-block">
+                      <span className="ed-ai-label">Sinopsis breve</span>
+                      <p>{aiInsights.summary.shortSynopsis || "-"}</p>
+                    </div>
+                    <div className="ed-ai-block">
+                      <span className="ed-ai-label">Resumen por escenas</span>
+                      <ul className="ed-ai-list">
+                        {(aiInsights.summary.sceneSummary || []).map(
+                          (item, index) => (
+                            <li key={`${index}-${item}`}>{item}</li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="ed-ai-card">
+                    <div className="ed-ai-card-title">Feedback</div>
+                    <div className="ed-ai-block">
+                      <span className="ed-ai-label">Vista general</span>
+                      <p>{aiInsights.feedback.overall || "-"}</p>
+                    </div>
+                    <div className="ed-ai-block">
+                      <span className="ed-ai-label">Fortalezas</span>
+                      <ul className="ed-ai-list">
+                        {(aiInsights.feedback.strengths || []).map(
+                          (item, index) => (
+                            <li key={`strength-${index}-${item}`}>{item}</li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                    <div className="ed-ai-block">
+                      <span className="ed-ai-label">Mejoras sugeridas</span>
+                      <ul className="ed-ai-list">
+                        {(aiInsights.feedback.improvements || []).map(
+                          (item, index) => (
+                            <li key={`improvement-${index}-${item}`}>{item}</li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                    <div className="ed-ai-block">
+                      <span className="ed-ai-label">Próximos pasos</span>
+                      <ul className="ed-ai-list">
+                        {(aiInsights.feedback.nextSteps || []).map(
+                          (item, index) => (
+                            <li key={`next-${index}-${item}`}>{item}</li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STATS */}
+          {rightTab === "stats" && (
+            <div className="ed-r-sec">
+              <div className="ed-r-ttl">Estadísticas</div>
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">Palabras</span>
+                <span className="ed-r-val">{wordCount}</span>
+              </div>
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">Bloques</span>
+                <span className="ed-r-val">{blocks.length}</span>
+              </div>
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">Escenas</span>
+                <span className="ed-r-val">{scenes.length}</span>
+              </div>
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">Páginas</span>
+                <span className="ed-r-val">
+                  {pages.length + (showCredits ? 1 : 0)}
+                </span>
+              </div>
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">Personajes</span>
+                <span className="ed-r-val">{characterNames.length}</span>
+              </div>
+              <div className="ed-r-row">
+                <span className="ed-r-lbl">Comentarios</span>
+                <span className="ed-r-val">{inlineComments.length}</span>
+              </div>
+            </div>
+          )}
+
           {/* CHARACTERS */}
           {rightTab === "characters" && (
             <div className="ed-r-sec">
@@ -1181,6 +1767,71 @@ export default function Editor({
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* INLINE COMMENTS */}
+          {rightTab === "comments" && (
+            <div className="ed-r-sec">
+              <div className="ed-r-ttl">
+                Comentarios en guión
+                {inlineComments.length > 0 && (
+                  <span className="ed-r-count">{inlineComments.length}</span>
+                )}
+              </div>
+              {inlineComments.length === 0 ? (
+                <div className="ed-r-empty">
+                  Sin comentarios aún. Haz clic en 💬 sobre cualquier bloque
+                  para agregar uno.
+                </div>
+              ) : (
+                <div className="ed-r-comment-list">
+                  {inlineComments.map((c) => {
+                    const typeLabel = LABELS[c.blockType] || c.blockType;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`ed-r-cmt${c.resolved ? " resolved" : ""}`}
+                        onClick={() => {
+                          const block = blocks.find((b) => b.id === c.blockId);
+                          if (block) focusBlock(block.id);
+                        }}
+                      >
+                        <div className="ed-r-cmt-head">
+                          <span className="ed-r-cmt-av">{c.initials}</span>
+                          <span className="ed-r-cmt-author">{c.author}</span>
+                          <span className="ed-r-cmt-badge">{typeLabel}</span>
+                          {c.resolved && (
+                            <span className="ed-r-cmt-resolved">✓</span>
+                          )}
+                        </div>
+                        <div className="ed-r-cmt-text">{c.text}</div>
+                        <div className="ed-r-cmt-time">{c.time}</div>
+                        <div className="ed-r-cmt-actions">
+                          <button
+                            className="ed-r-cmt-act"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              resolveInlineComment(c.id);
+                            }}
+                          >
+                            {c.resolved ? "↩ Reabrir" : "✓ Resolver"}
+                          </button>
+                          <button
+                            className="ed-r-cmt-act danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteInlineComment(c.id);
+                            }}
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

@@ -11,7 +11,7 @@ const TEMPLATES = [
   { icon: "📢", name: "Publicidad" },
 ];
 
-export default function Inicio({ onEdit, onCommentProject, projects = [] }) {
+export default function Inicio({ onEdit, projects = [] }) {
   const [collaborators, setCollaborators] = useState(0);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(null);
@@ -49,11 +49,19 @@ export default function Inicio({ onEdit, onCommentProject, projects = [] }) {
             <div className="empty-sub">Preparando tus datos…</div>
           </div>
         ) : projects.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state empty-template">
             <div className="empty-icon">📽️</div>
             <div className="empty-title">Bienvenido</div>
             <div className="empty-sub">
               Comienza creando tu primer guión cinematográfico.
+            </div>
+            <div className="empty-preview-label">Vista previa</div>
+            <div className="sample-card sample-card-project">
+              <div className="sample-card-tag">Ejemplo</div>
+              <div className="sample-card-title">Mi primer guión</div>
+              <div className="sample-card-meta">
+                Drama · 3 escenas · Borrador
+              </div>
             </div>
             <button
               className="btn-gold sm"
@@ -103,13 +111,11 @@ export default function Inicio({ onEdit, onCommentProject, projects = [] }) {
                         className="proj-dd-item"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (typeof onCommentProject === "function") {
-                            onCommentProject(p, null);
-                          }
+                          onEdit(p.name, null, p);
                           setMenuOpen(null);
                         }}
                       >
-                        💬 Comentar
+                        ✏ Editar
                       </div>
                     </div>
                   )}

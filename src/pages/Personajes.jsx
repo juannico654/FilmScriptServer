@@ -163,7 +163,9 @@ export default function Personajes({ projects = [] }) {
           <div className="empty-sub">
             Agrega los personajes para desarrollar y dar vida a tu guión.
           </div>
+          <div className="empty-preview-label">Vista previa</div>
           <div className="sample-card sample-card-character">
+            <div className="sample-card-tag">Ejemplo</div>
             <div className="sample-card-title">Alex Mercado</div>
             <div className="sample-card-meta">
               Protagonista · 5 escenas · Detective con pasado

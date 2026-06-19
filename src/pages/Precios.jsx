@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import API_BASE from "../utils/api";
 
 const DEFAULT_PRICES = { mes: 40000, anio: 400000 };
 
@@ -12,12 +13,10 @@ const fmt = (n) =>
 export default function Precios({ onComprar, comprando, modoCompra }) {
   const [prices, setPrices] = useState(DEFAULT_PRICES);
 
-  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
   useEffect(() => {
     const cargarPrecios = async () => {
       try {
-        const res = await fetch(`${API}/api/plans`);
+        const res = await fetch(`${API_BASE}/api/plans`);
         if (res.ok) {
           const data = await res.json();
           setPrices({ mes: data.mes, anio: data.anio });
@@ -31,27 +30,27 @@ export default function Precios({ onComprar, comprando, modoCompra }) {
 
   const planes = [
     {
-      key: "dia",
-      label: "Plan Día",
-      periodo: "24 horas",
-      desc: "Acceso completo a la plataforma por un día. Ideal para probar todas las funcionalidades.",
-      color: "#6eb5ff",
-      features: ["Editor de guion completo", "Hasta 3 proyectos", "Exportar en PDF", "Soporte básico"],
-    },
-    {
       key: "mes",
       label: "Plan Mes",
       periodo: "30 días",
       desc: "El plan más popular. Acceso ilimitado durante un mes completo para desarrollar tus proyectos.",
+      icon: "★",
       color: "#e8c547",
       badge: "MÁS POPULAR",
-      features: ["Todo lo del Plan Día", "Proyectos ilimitados", "Colaboradores", "Carga masiva", "Soporte prioritario"],
+      features: [
+        "Editor de guion completo",
+        "Proyectos ilimitados",
+        "Colaboradores",
+        "Carga masiva",
+        "Soporte prioritario",
+      ],
     },
     {
       key: "anio",
       label: "Plan Anual",
       periodo: "365 días",
       desc: "La mejor inversión. Un año completo con todas las funciones y el mayor ahorro.",
+      icon: "♛",
       color: "#52c97a",
       features: [
         "Todo lo del Plan Mes",
@@ -63,201 +62,64 @@ export default function Precios({ onComprar, comprando, modoCompra }) {
   ];
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 48 }}>
-        <div
-          style={{
-            fontSize: 11,
-            letterSpacing: 3,
-            color: "var(--accent)",
-            fontWeight: 700,
-            marginBottom: 12,
-          }}
-        >
-          PLANES Y PRECIOS
-        </div>
-        <h1
-          style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 42,
-            letterSpacing: 3,
-            color: "var(--text)",
-            marginBottom: 14,
-            lineHeight: 1,
-          }}
-        >
-          ELIGE TU PLAN
-        </h1>
-        <p
-          style={{
-            fontSize: 15,
-            color: "var(--muted2)",
-            maxWidth: 480,
-            margin: "0 auto",
-            lineHeight: 1.6,
-          }}
-        >
+    <div className="price-wrap">
+      <div className="price-head">
+        <div className="price-kicker">PLANES Y PRECIOS</div>
+        <h1>ELIGE TU PLAN</h1>
+        <p>
           Accede a todas las herramientas profesionales para escribir y
           gestionar tus guiones cinematográficos.
         </p>
       </div>
 
-      {/* Tarjetas */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+      <div className="price-grid">
         {planes.map((p) => (
           <div
             key={p.key}
-            style={{
-              background: "var(--card)",
-              border: p.badge
-                ? `1px solid ${p.color}`
-                : "1px solid var(--border)",
-              borderRadius: 16,
-              padding: "28px 24px",
-              display: "flex",
-              flexDirection: "column",
-              position: "relative",
-              boxShadow: p.badge ? `0 8px 32px ${p.color}20` : "none",
-              transition: "transform 0.2s, box-shadow 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow = `0 16px 40px ${p.color}25`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = p.badge
-                ? `0 8px 32px ${p.color}20`
-                : "none";
-            }}
+            className={`price-card${p.badge ? " featured" : ""}`}
+            style={{ "--plan-color": p.color }}
           >
-            {/* Badge */}
-            {p.badge && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: -12,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  background: p.color,
-                  color: "#000",
-                  fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: 1.5,
-                  padding: "4px 14px",
-                  borderRadius: 20,
-                }}
-              >
-                {p.badge}
-              </div>
-            )}
+            {p.badge && <div className="price-badge">{p.badge}</div>}
 
-            {/* Icono + nombre */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>{p.icon}</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: "var(--text)", marginBottom: 4 }}>
-                {p.label}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--muted2)" }}>
-                {p.desc}
-              </div>
+            <div className="price-top">
+              <div className="price-icon">{p.icon}</div>
+              <div className="price-name">{p.label}</div>
+              <div className="price-desc">{p.desc}</div>
             </div>
 
-            {/* Precio */}
-            <div
-              style={{
-                marginBottom: 24,
-                padding: "16px 0",
-                borderTop: "1px solid var(--border)",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 34,
-                  fontWeight: 800,
-                  color: p.color,
-                  lineHeight: 1,
-                }}
-              >
-                {fmt(prices[p.key])}
-              </div>
-              <div
-                style={{ fontSize: 12, color: "var(--muted2)", marginTop: 4 }}
-              >
-                por {p.periodo}
-              </div>
+            <div className="price-box">
+              <div className="price-value">{fmt(prices[p.key])}</div>
+              <div className="price-period">por {p.periodo}</div>
             </div>
 
-            {/* Features */}
-            <div style={{ flex: 1, marginBottom: 24 }}>
+            <div className="price-features">
               {p.features.map((f, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 10,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: `${p.color}20`,
-                      border: `1px solid ${p.color}60`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span style={{ fontSize: 10, color: p.color }}>✓</span>
-                  </div>
-                  <span style={{ fontSize: 13, color: "var(--muted2)" }}>
-                    {f}
-                  </span>
+                <div key={i} className="price-feature">
+                  <div className="price-check">✓</div>
+                  <span>{f}</span>
                 </div>
               ))}
             </div>
 
-            {/* Botón */}
-            <button style={{
-              width: "100%", padding: "12px",
-              borderRadius: 10, border: `1px solid ${p.color}`,
-              background: p.badge ? p.color : "transparent",
-              color: p.badge ? "#000" : p.color,
-              fontWeight: 700, fontSize: 13, cursor: "pointer",
-              transition: "background 0.2s, color 0.2s",
-            }}
-              onMouseEnter={e => { e.currentTarget.style.background = p.color; e.currentTarget.style.color = "#000"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = p.badge ? p.color : "transparent"; e.currentTarget.style.color = p.badge ? "#000" : p.color; }}
+            <button
+              className="price-button"
+              type="button"
+              onClick={() => onComprar?.(p.key)}
             >
-              {comprando === p.key ? "Procesando…" : (modoCompra ? `Comprar ${p.label}` : `Adquirir ${p.label}`)}
+              {comprando === p.key
+                ? "Procesando…"
+                : modoCompra
+                  ? `Comprar ${p.label}`
+                  : `Adquirir ${p.label}`}
             </button>
           </div>
         ))}
       </div>
 
-      {/* Nota inferior */}
-      <div
-        style={{
-          textAlign: "center",
-          marginTop: 36,
-          padding: "18px 24px",
-          background: "var(--card)",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-        }}
-      >
-        <span style={{ fontSize: 13, color: "var(--muted2)" }}>
+      <div className="price-note">
+        <span>
           💬 ¿Tienes preguntas sobre los planes?{" "}
-          <span style={{ color: "var(--accent)", cursor: "pointer" }}>
-            Contáctanos en soporte@filmscript.com
-          </span>
+          <span>Contáctanos en soporte@filmscript.com</span>
         </span>
       </div>
     </div>

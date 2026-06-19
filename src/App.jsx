@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import Auth       from "./pages/Auth";
-import Dashboard  from "./pages/Dashboard";
+import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
+import PagoRequerido from "./pages/PagoRequerido";
+import { requierePago } from "./utils/licencia";
 import "./styles/Global.css";
 
 export default function App() {
@@ -42,7 +44,29 @@ export default function App() {
     setPage("dashboard");
   };
 
-  if (page === "admin")     return <AdminPanel />;
-  if (page === "auth")      return <Auth onLogin={handleLogin} />;
+  const handleExitAdminPanel = () => {
+    window.history.replaceState({}, "", "/");
+    const storedUser = localStorage.getItem("usuario");
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      setUsuario(user);
+      setPage(requierePago(user) ? "pago" : "dashboard");
+      return;
+    }
+    setUsuario(null);
+    setPage("auth");
+  };
+
+  if (page === "admin") return <AdminPanel onExit={handleExitAdminPanel} />;
+  if (page === "auth") return <Auth onLogin={handleLogin} />;
+  if (page === "pago")
+    return (
+      <PagoRequerido
+        usuario={usuario}
+        onLicenciaActivada={handleLicenciaActivada}
+        onLogout={handleLogout}
+        onBackToLogin={handleLogout}
+      />
+    );
   return <Dashboard usuario={usuario} onLogout={handleLogout} />;
 }

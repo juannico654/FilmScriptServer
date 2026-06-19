@@ -157,6 +157,7 @@ export default function Escenas({ projects = [] }) {
           <div className="empty-sub">
             Comienza creando la primera escena de tu proyecto.
           </div>
+          <div className="empty-preview-label">Vista previa</div>
           <div className="sample-row">
             <span className="sample-pill">INT.</span>
             <div className="sample-row-content">

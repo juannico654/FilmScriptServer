@@ -1,18 +1,24 @@
 import { useState } from "react";
 import Precios from "./Precios";
+import "../styles/PagoRequerido.css";
+import API_BASE from "../utils/api";
 
-export default function PagoRequerido({ usuario, onLicenciaActivada, onLogout }) {
+export default function PagoRequerido({
+  usuario,
+  onLicenciaActivada,
+  onLogout,
+  onBackToLogin,
+}) {
   const [comprando, setComprando] = useState(null);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
 
-  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
   const comprar = async (planKey) => {
-    setError(""); setOk("");
+    setError("");
+    setOk("");
     setComprando(planKey);
     try {
-      const res = await fetch(`${API}/api/payments/comprar`, {
+      const res = await fetch(`${API_BASE}/api/payments/comprar`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -21,12 +27,16 @@ export default function PagoRequerido({ usuario, onLicenciaActivada, onLogout })
         body: JSON.stringify({ plan: planKey }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "No se pudo procesar el pago");
+      if (!res.ok)
+        throw new Error(data.message || "No se pudo procesar el pago");
 
       // Actualizar usuario en localStorage con la nueva licencia activa
       localStorage.setItem("usuario", JSON.stringify(data.user));
       setOk("✓ ¡Pago realizado! Activando tu cuenta…");
-      setTimeout(() => onLicenciaActivada && onLicenciaActivada(data.user), 800);
+      setTimeout(
+        () => onLicenciaActivada && onLicenciaActivada(data.user),
+        800,
+      );
     } catch (e) {
       setError(e.message || "Error al procesar el pago. Intenta nuevamente.");
     } finally {
@@ -35,50 +45,69 @@ export default function PagoRequerido({ usuario, onLicenciaActivada, onLogout })
   };
 
   return (
-    <div style={{
-      minHeight: "100vh", width: "100%",
-      background: "var(--ink, #0d0d14)",
-      display: "flex", flexDirection: "column", alignItems: "center",
-      padding: "48px 20px", boxSizing: "border-box", overflowY: "auto",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--gold,#c9a84c)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 900 }}>✦</div>
-        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, letterSpacing: 2, color: "var(--text,#e0e0e0)" }}>FILMSCRIPT</span>
+    <div className="pay-page">
+      <div className="pay-shell">
+        <section className="pay-intro pay-card">
+          <div className="pay-brand">
+            <div className="pay-brand-icon">✦</div>
+            <span>FILMSCRIPT</span>
+          </div>
+
+          <div className="pay-alert">
+            <div className="pay-alert-title">
+              🔒 Tu cuenta no tiene una licencia activa
+            </div>
+            <div className="pay-alert-text">
+              Hola
+              {usuario?.name || usuario?.nombre
+                ? `, ${usuario.name || usuario.nombre}`
+                : ""}
+              . Necesitas un plan para entrar al editor y usar la plataforma
+              completa.
+            </div>
+          </div>
+
+          <div className="pay-summary">
+            <div>
+              <span>Estado</span>
+              <strong>Sin licencia</strong>
+            </div>
+            <div>
+              <span>Acceso</span>
+              <strong>Limitado</strong>
+            </div>
+            <div>
+              <span>Acción</span>
+              <strong>Elegir plan</strong>
+            </div>
+          </div>
+
+          <div className="pay-actions">
+            <button
+              type="button"
+              className="pay-back"
+              onClick={onBackToLogin || onLogout}
+            >
+              Volver al login
+            </button>
+            <button type="button" className="pay-logout" onClick={onLogout}>
+              Cerrar sesión
+            </button>
+          </div>
+
+          <div className="pay-note">
+            Si ya pagaste y sigues viendo esta pantalla, cierra sesión e inicia
+            de nuevo para refrescar tu acceso.
+          </div>
+        </section>
+
+        <section className="pay-plans pay-card">
+          <Precios onComprar={comprar} comprando={comprando} modoCompra />
+
+          {error && <div className="pay-message error">⚠ {error}</div>}
+          {ok && <div className="pay-message success">{ok}</div>}
+        </section>
       </div>
-
-      <div style={{
-        maxWidth: 520, textAlign: "center", margin: "18px 0 36px",
-        padding: "16px 24px", borderRadius: 12,
-        background: "rgba(224,92,92,0.08)", border: "1px solid rgba(224,92,92,0.25)",
-      }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#e0e0e0", marginBottom: 6 }}>
-          🔒 Tu cuenta no tiene una licencia activa
-        </div>
-        <div style={{ fontSize: 13, color: "var(--muted,#888)", lineHeight: 1.5 }}>
-          Hola{usuario?.nombre ? `, ${usuario.nombre}` : ""}. Para usar FilmScript necesitas adquirir uno de
-          los siguientes planes. Una vez completado el pago, tendrás acceso completo a la plataforma.
-        </div>
-      </div>
-
-      {error && (
-        <div style={{ marginBottom: 18, fontSize: 13, color: "#e05c5c", padding: "10px 16px", background: "rgba(224,92,92,0.1)", borderRadius: 8 }}>
-          ⚠ {error}
-        </div>
-      )}
-      {ok && (
-        <div style={{ marginBottom: 18, fontSize: 13, color: "#5ce07a", padding: "10px 16px", background: "rgba(92,224,122,0.1)", borderRadius: 8 }}>
-          {ok}
-        </div>
-      )}
-
-      <Precios onComprar={comprar} comprando={comprando} modoCompra />
-
-      <button onClick={onLogout} style={{
-        marginTop: 36, background: "none", border: "none",
-        color: "var(--muted,#888)", fontSize: 13, cursor: "pointer", textDecoration: "underline",
-      }}>
-        Cerrar sesión
-      </button>
     </div>
   );
 }

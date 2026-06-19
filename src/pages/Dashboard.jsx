@@ -1,21 +1,26 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import "../styles/Dashboard.css";
 
 import Inicio from "./Inicio";
 import Proyectos from "./Proyectos";
 import Escenas from "./Escenas";
 import Personajes from "./Personajes";
-import Comentarios from "./Comentarios";
+import ImportarGuiones from "./ImportarGuiones";
 import Editor from "./Editor";
 import CargueMasivo from "./CargueMasivo";
 import PanelInstructor from "./PanelInstructor";
 import Precios from "./Precios";
+import API_BASE from "../utils/api";
+
+const normalizeEmail = (value = "") => value.toString().trim().toLowerCase();
+const getUserName = (user) => user?.name || user?.nombre || "USUARIO";
+const getUserEmail = (user) => normalizeEmail(user?.email || "");
 
 const NAV = [
   { icon: "⌂", label: "Inicio" },
   { icon: "⌘", label: "Proyectos" },
   { icon: "▷", label: "Escenas" },
-  { icon: "✉", label: "Comentarios" },
+  { icon: "⬆", label: "Importar" },
   { icon: "◎", label: "Personajes" },
   { icon: "$", label: "Precios" },
 ];
@@ -36,45 +41,71 @@ export default function Dashboard({ onLogout, usuario }) {
   const [edKey, setEdKey] = useState(0);
   const [edData, setEdData] = useState(null);
 
-  const [projects, setProjects] = useState(() => {
-    try {
-      const saved = localStorage.getItem("fs_projects");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [projects, setProjects] = useState([]);
 
-  const [comments, setComments] = useState([]);
-  const [pendingCommentProject, setPendingCommentProject] = useState(null);
-  const [pendingCommentTarget, setPendingCommentTarget] = useState(null);
   const [collabs, setCollabs] = useState([]);
   const [activity, _setActivity] = useState([]);
   const [notifs, setNotifs] = useState([]);
   const [loadingRP, setLoadingRP] = useState(true);
 
-  useEffect(() => {
-    // TODO: GET /api/dashboard  (o llamadas paralelas)
-    // const [projRes, collabRes, actRes, notifRes] = await Promise.all([
-    //   fetch("/api/projects"),
-    //   fetch("/api/team"),
-    //   fetch("/api/activity"),
-    //   fetch("/api/notifications"),
-    // ]);
-    // setProjects(await projRes.json());
-    // setCollabs(await collabRes.json());
-    // setActivity(await actRes.json());
-    // setNotifs(await notifRes.json());
-    setLoadingRP(false);
-  }, []);
+  const syncCollabsFromProjects = useCallback(
+    (projectList) => {
+      const emails = projectList
+        .filter((project) => project.ownerEmail === getUserEmail(usuario))
+        .flatMap((project) => project.collaboratorEmails || []);
+
+      const uniqueEmails = [
+        ...new Set(emails.map(normalizeEmail).filter(Boolean)),
+      ];
+      setCollabs(
+        uniqueEmails.map((email) => ({
+          id: email,
+          i: email.slice(0, 2).toUpperCase(),
+          name: email,
+          role: "Colaborador",
+          g: false,
+        })),
+      );
+    },
+    [usuario],
+  );
+
+  const fetchProjects = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setProjects([]);
+      setCollabs([]);
+      setLoadingRP(false);
+      return;
+    }
+
+    setLoadingRP(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/projects`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudieron cargar los proyectos");
+      }
+
+      const nextProjects = Array.isArray(data.projects) ? data.projects : [];
+      setProjects(nextProjects);
+      syncCollabsFromProjects(nextProjects);
+    } catch (error) {
+      console.error(error);
+      setProjects([]);
+      setCollabs([]);
+    } finally {
+      setLoadingRP(false);
+    }
+  }, [syncCollabsFromProjects]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("fs_projects", JSON.stringify(projects));
-    } catch {
-      // ignore localStorage errors
-    }
-  }, [projects]);
+    fetchProjects();
+  }, [fetchProjects]);
 
   // ── Búsqueda ──────────────────────────────────────────────────────
   const [showSearch, setShowSearch] = useState(false);
@@ -121,14 +152,14 @@ export default function Dashboard({ onLogout, usuario }) {
   const [showAvatar, setShowAvatar] = useState(false);
   const avatarRef = useRef(null);
   useOutsideClick(avatarRef, () => setShowAvatar(false));
-  const iniciales = usuario?.nombre
-    ? usuario.nombre.slice(0, 2).toUpperCase()
+  const iniciales = getUserName(usuario)
+    ? getUserName(usuario).slice(0, 2).toUpperCase()
     : "??";
 
   // ── Perfil ────────────────────────────────────────────────────────
   const [showPerfil, setShowPerfil] = useState(false);
   const [perfilData, setPerfilData] = useState({
-    nombre: usuario?.nombre || "",
+    nombre: getUserName(usuario),
     email: usuario?.email || "",
     rol: usuario?.rol || "",
     bio: "",
@@ -185,27 +216,61 @@ export default function Dashboard({ onLogout, usuario }) {
       setInvErr("Ingresa un correo válido.");
       return;
     }
-    // TODO: POST /api/team/invite  { email: invEmail, role: invRole }
-    // const res  = await fetch("/api/team/invite", { method:"POST", ... });
-    // const data = await res.json();
-    // setCollabs(prev => [...prev, data]);
-    const initials = invEmail.slice(0, 2).toUpperCase();
-    setCollabs((prev) => [
-      ...prev,
-      { id: Date.now(), i: initials, name: invEmail, role: invRole, g: false },
-    ]);
-    setInvFlash(true);
-    setInvEmail("");
-    setInvErr("");
-    setTimeout(() => {
-      setInvFlash(false);
-      setInvModal(false);
-    }, 1500);
+    if (normalizeEmail(invEmail) === getUserEmail(usuario)) {
+      setInvErr(
+        "No necesitas invitarte a ti mismo. Tu cuenta ya ve tus propios proyectos.",
+      );
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE}/api/projects/share-team`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: invEmail.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo invitar al colaborador");
+      }
+
+      await fetchProjects();
+      setInvFlash(true);
+      setInvEmail("");
+      setInvErr("");
+      setTimeout(() => {
+        setInvFlash(false);
+        setInvModal(false);
+      }, 1500);
+    } catch (error) {
+      setInvErr(error.message || "No se pudo invitar al colaborador.");
+    }
   };
 
   const removeCollab = async (id) => {
-    // TODO: DELETE /api/team/:id
-    setCollabs((prev) => prev.filter((c) => c.id !== id));
+    try {
+      const token = localStorage.getItem("token");
+      const email = collabs.find((collab) => collab.id === id)?.name || id;
+      const response = await fetch(`${API_BASE}/api/projects/share-team`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo retirar el colaborador");
+      }
+
+      await fetchProjects();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   // ── Editor ────────────────────────────────────────────────────────
@@ -218,18 +283,13 @@ export default function Dashboard({ onLogout, usuario }) {
     });
   };
   const closeEditor = () => setEdData(null);
-  const openComments = (project = null, targetType = null) => {
-    setNav("Comentarios");
-    setPendingCommentProject(project);
-    setPendingCommentTarget(targetType);
-    setEdData(null);
-  };
-  const addComment = (comment) => {
-    setComments((prev) => [comment, ...prev]);
-  };
   const isEditor = edData !== null;
 
-  const saveProject = (project) => {
+  const saveProject = async (project) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Sesión expirada. Inicia sesión de nuevo para guardar.");
+    }
     const now = new Date();
     const updatedAt = now.toLocaleDateString("es-ES", {
       day: "2-digit",
@@ -243,26 +303,73 @@ export default function Dashboard({ onLogout, usuario }) {
     const meta = `${sceneCount} escena${sceneCount === 1 ? "" : "s"} · ${blockCount} bloque${blockCount === 1 ? "" : "s"}`;
 
     const payload = {
-      id: project.id || Date.now(),
       name: project.name || "Sin título",
       meta,
       updatedAt,
       status: "draft",
+      collaboratorEmails: collabs.map((collab) => normalizeEmail(collab.name)),
       script: {
         blocks: project.blocks,
         credits: project.credits,
+        inlineComments: project.inlineComments || [],
+        aiInsights: project.aiInsights || null,
       },
     };
 
-    setProjects((prev) => {
-      const exists = prev.some((p) => p.id === payload.id);
-      if (exists) {
-        return prev.map((p) => (p.id === payload.id ? payload : p));
+    try {
+      const url = project.id
+        ? `${API_BASE}/api/projects/${project.id}`
+        : `${API_BASE}/api/projects`;
+      const method = project.id ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo guardar el proyecto");
       }
-      return [payload, ...prev];
-    });
 
-    return payload;
+      const savedProject = data.project;
+      if (!savedProject) {
+        throw new Error("El servidor no devolvió el proyecto guardado.");
+      }
+      setProjects((prev) => {
+        const exists = prev.some((p) => p.id === savedProject.id);
+        if (exists) {
+          return prev.map((p) => (p.id === savedProject.id ? savedProject : p));
+        }
+        return [savedProject, ...prev];
+      });
+      return savedProject;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  };
+
+  const deleteProject = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE}/api/projects/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo eliminar el proyecto");
+      }
+
+      setProjects((prev) => prev.filter((project) => project.id !== id));
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const renderView = () => {
@@ -271,25 +378,20 @@ export default function Dashboard({ onLogout, usuario }) {
         return (
           <Proyectos
             onEdit={openEditor}
-            onCommentProject={openComments}
             projects={projects}
-            onDeleteProject={(id) =>
-              setProjects((prev) => prev.filter((p) => p.id !== id))
-            }
+            onDeleteProject={deleteProject}
           />
         );
       case "Escenas":
         return <Escenas projects={projects} />;
       case "Personajes":
         return <Personajes projects={projects} />;
-      case "Comentarios":
+      case "Importar":
         return (
-          <Comentarios
-            currentUser={usuario}
-            comments={comments}
-            onAddComment={addComment}
-            selectedProjectName={pendingCommentProject?.name}
-            selectedTargetType={pendingCommentTarget}
+          <ImportarGuiones
+            onEdit={openEditor}
+            projects={projects}
+            onBack={() => setNav("Inicio")}
           />
         );
       case "Precios":
@@ -299,13 +401,7 @@ export default function Dashboard({ onLogout, usuario }) {
       case "Panel Instructor":
         return <PanelInstructor />;
       default:
-        return (
-          <Inicio
-            onEdit={openEditor}
-            onCommentProject={openComments}
-            projects={projects}
-          />
-        );
+        return <Inicio onEdit={openEditor} projects={projects} />;
     }
   };
 
@@ -938,6 +1034,7 @@ export default function Dashboard({ onLogout, usuario }) {
             initProject={edData.project}
             onBack={closeEditor}
             onSaveProject={saveProject}
+            currentUser={usuario}
           />
         </main>
       ) : (
@@ -1442,7 +1539,10 @@ export default function Dashboard({ onLogout, usuario }) {
               <div>
                 <h2 className="invite-title">Invitar colaborador</h2>
 
-                <p className="invite-sub">Agrega personas a tu proyecto.</p>
+                <p className="invite-sub">
+                  Comparte tus proyectos dentro de FilmScript con otro correo.
+                  Esta acción no envía un correo automático.
+                </p>
               </div>
 
               <button

@@ -1,6 +1,152 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import "../styles/CargueMasivo.css";
+import API_BASE from "../utils/api";
+
+const DEFAULT_HEADERS = [
+  "tipo de documento",
+  "numero de documento",
+  "primer apellido",
+  "segundo apellido",
+  "primer nombre",
+  "otros nombres",
+  "correo electronico",
+  "telefono",
+  "ficha",
+  "programa de formacion",
+];
+
+const SENA_HEADER_CANDIDATES = [
+  "tipo de documento",
+  "documento",
+  "numero de documento",
+  "identificacion",
+  "primer apellido",
+  "segundo apellido",
+  "apellidos",
+  "primer nombre",
+  "otros nombres",
+  "nombres",
+  "correo",
+  "email",
+  "telefono",
+  "celular",
+  "ficha",
+  "programa de formacion",
+  "programa",
+  "aprendiz",
+  "estudiante",
+];
+
+const normalizeKey = (key) =>
+  key
+    ?.toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[_-]+/g, " ") || "";
+
+const matchesHeader = (value, candidates) =>
+  candidates.some((candidate) => value.includes(candidate));
+
+const findKey = (row, candidates) => {
+  const keys = Object.keys(row);
+  const found = keys.find((key) =>
+    matchesHeader(normalizeKey(key), candidates),
+  );
+  return found ? row[found]?.toString().trim() : "";
+};
+
+const combineName = (row) => {
+  const name = findKey(row, [
+    "nombre",
+    "nombres",
+    "nombre completo",
+    "nombre completo del aprendiz",
+    "nombres y apellidos",
+    "apellidos y nombres",
+    "nombre estudiante",
+    "nombre del estudiante",
+    "nombre del aprendiz",
+    "estudiante",
+    "aprendiz",
+  ]);
+
+  if (name) return name;
+
+  const first = findKey(row, [
+    "primer nombre",
+    "otros nombres",
+    "nombres",
+    "nombre",
+  ]);
+  const last = findKey(row, [
+    "primer apellido",
+    "segundo apellido",
+    "apellidos",
+    "apellido",
+    "apellido paterno",
+    "apellido materno",
+  ]);
+
+  const firstName = findKey(row, ["primer nombre", "nombre"]);
+  const otherNames = findKey(row, ["otros nombres", "segundo nombre"]);
+  const firstLastName = findKey(row, ["primer apellido", "apellido"]);
+  const secondLastName = findKey(row, ["segundo apellido"]);
+
+  const senaName = [firstName, otherNames, firstLastName, secondLastName]
+    .filter(Boolean)
+    .join(" ");
+
+  if (senaName) return senaName;
+
+  return [first, last].filter(Boolean).join(" ");
+};
+
+const findEmail = (row) =>
+  findKey(row, [
+    "correo",
+    "correo electronico",
+    "correo electrónico",
+    "email",
+    "e-mail",
+    "email institucional",
+    "email_institucional",
+    "mail",
+  ]);
+
+const buildManualState = (headers) =>
+  headers.reduce((accumulator, header) => {
+    accumulator[header] = "";
+    return accumulator;
+  }, {});
+
+const getFieldLabel = (header) => {
+  const clean = String(header || "").trim();
+  if (!clean) return "Campo";
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+};
+
+const getFieldType = (header) =>
+  matchesHeader(normalizeKey(header), ["correo", "email", "mail"])
+    ? "email"
+    : "text";
+
+const formatDocumento = (student) => {
+  const perfil = student?.perfilSena || {};
+  const tipo = perfil.tipoDocumento || "";
+  const numero = perfil.numeroDocumento || "";
+  return [tipo, numero].filter(Boolean).join(" ") || "-";
+};
+
+const countHeaderMatches = (row) => {
+  const normalizedCells = row.map(normalizeKey).filter(Boolean);
+  return normalizedCells.reduce((count, cell) => {
+    return count + (matchesHeader(cell, SENA_HEADER_CANDIDATES) ? 1 : 0);
+  }, 0);
+};
 
 export default function CargueMasivo() {
   const [fileName, setFileName] = useState("");
@@ -9,9 +155,51 @@ export default function CargueMasivo() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const [manualNombre, setManualNombre] = useState("");
-  const [manualCorreo, setManualCorreo] = useState("");
+  const [excelHeaders, setExcelHeaders] = useState(DEFAULT_HEADERS);
+  const [manualData, setManualData] = useState(
+    buildManualState(DEFAULT_HEADERS),
+  );
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
   const fileInputRef = useRef(null);
+
+  const cargarEstudiantes = async () => {
+    setStudentsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setStudents([]);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/licenses/estudiantes`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          data.message || "No se pudo cargar la lista de estudiantes",
+        );
+      }
+
+      setStudents(Array.isArray(data.estudiantes) ? data.estudiantes : []);
+    } catch (err) {
+      setStudents([]);
+      setError(
+        (currentError) =>
+          currentError || `Error al cargar estudiantes: ${err.message}`,
+      );
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarEstudiantes();
+  }, []);
 
   // Validar que tenga campos requeridos
   const validarDatos = (data) => {
@@ -29,67 +217,6 @@ export default function CargueMasivo() {
   const parseExcel = (file) => {
     setError("");
     setSuccess("");
-
-    const normalizeKey = (key) =>
-      key
-        ?.toString()
-        .trim()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, " ")
-        .replace(/[_-]+/g, " ") || "";
-
-    const matchesHeader = (value, candidates) =>
-      candidates.some((candidate) => value.includes(candidate));
-
-    const findKey = (row, candidates) => {
-      const keys = Object.keys(row);
-      const found = keys.find((key) =>
-        matchesHeader(normalizeKey(key), candidates),
-      );
-      return found ? row[found]?.toString().trim() : "";
-    };
-
-    const combineName = (row) => {
-      const name = findKey(row, [
-        "nombre",
-        "nombres",
-        "nombre completo",
-        "nombre completo del aprendiz",
-        "nombres y apellidos",
-        "apellidos y nombres",
-        "nombre estudiante",
-        "nombre del estudiante",
-        "nombre del aprendiz",
-        "estudiante",
-        "aprendiz",
-      ]);
-
-      if (name) return name;
-
-      const first = findKey(row, ["nombres", "nombre"]);
-      const last = findKey(row, [
-        "apellidos",
-        "apellido",
-        "apellido paterno",
-        "apellido materno",
-      ]);
-
-      return [first, last].filter(Boolean).join(" ");
-    };
-
-    const findEmail = (row) =>
-      findKey(row, [
-        "correo",
-        "correo electronico",
-        "correo electrónico",
-        "email",
-        "e-mail",
-        "email institucional",
-        "email_institucional",
-        "mail",
-      ]);
 
     try {
       const reader = new FileReader();
@@ -115,27 +242,39 @@ export default function CargueMasivo() {
           return;
         }
 
-        const headerRowIndex = dataRows.findIndex((row) => {
+        let headerRowIndex = -1;
+        let bestScore = 0;
+
+        dataRows.forEach((row, index) => {
           const rowText = row.map(normalizeKey).join(" ");
-          return (
-            matchesHeader(rowText, ["correo", "email", "mail"]) &&
+          const score = countHeaderMatches(row);
+          const hasIdentitySignals =
             matchesHeader(rowText, [
               "nombre",
-              "apellidos",
-              "estudiante",
+              "nombres",
+              "apellido",
               "aprendiz",
-            ])
-          );
+              "estudiante",
+              "documento",
+              "correo",
+              "ficha",
+            ]) && score >= 2;
+
+          if (hasIdentitySignals && score > bestScore) {
+            bestScore = score;
+            headerRowIndex = index;
+          }
         });
 
         if (headerRowIndex === -1) {
           setError(
-            "No se encontró una fila de encabezado válida. Asegúrate de que la hoja tenga una fila con correo y nombre.",
+            "No se encontró una fila de encabezado válida. Asegúrate de que la hoja tenga columnas del formato SENA, como nombres, apellidos, documento, ficha o correo.",
           );
           return;
         }
 
         const headerRow = dataRows[headerRowIndex].map(normalizeKey);
+        const validHeaders = headerRow.filter(Boolean);
         const rowObjects = dataRows.slice(headerRowIndex + 1).map((row) => {
           const rowObj = {};
           headerRow.forEach((key, index) => {
@@ -166,6 +305,12 @@ export default function CargueMasivo() {
           return;
         }
 
+        setExcelHeaders(validHeaders.length ? validHeaders : DEFAULT_HEADERS);
+        setManualData(
+          buildManualState(
+            validHeaders.length ? validHeaders : DEFAULT_HEADERS,
+          ),
+        );
         setFileName(file.name);
         setPreview(normalized);
       };
@@ -184,8 +329,26 @@ export default function CargueMasivo() {
     setError("");
     setSuccess("");
 
-    if (!manualNombre.trim() || !manualCorreo.trim()) {
-      setError("Nombre y correo son obligatorios para agregar manualmente.");
+    const emptyField = excelHeaders.find(
+      (header) => !String(manualData[header] || "").trim(),
+    );
+    if (emptyField) {
+      setError(`Completa el campo obligatorio: ${getFieldLabel(emptyField)}.`);
+      return;
+    }
+
+    const manualRow = excelHeaders.reduce((accumulator, header) => {
+      accumulator[header] = String(manualData[header] || "").trim();
+      return accumulator;
+    }, {});
+
+    const manualNombre = combineName(manualRow);
+    const manualCorreo = findEmail(manualRow);
+
+    if (!manualNombre || !manualCorreo) {
+      setError(
+        "El formulario manual debe incluir un nombre y un correo válidos.",
+      );
       return;
     }
 
@@ -201,21 +364,22 @@ export default function CargueMasivo() {
         throw new Error("No existe token de autenticación. Haz login primero.");
       }
 
-      const response = await fetch(
-        "http://localhost:5000/api/licenses/carga-masiva",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            estudiantes: [
-              { nombre: manualNombre.trim(), correo: manualCorreo.trim() },
-            ],
-          }),
+      const response = await fetch(`${API_BASE}/api/licenses/carga-masiva`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({
+          estudiantes: [
+            {
+              nombre: manualNombre.trim(),
+              correo: manualCorreo.trim(),
+              raw: manualRow,
+            },
+          ],
+        }),
+      });
 
       const data = await response.json();
       if (!response.ok) {
@@ -225,8 +389,8 @@ export default function CargueMasivo() {
       setSuccess(
         data.message || "Estudiante agregado y licencia generada correctamente",
       );
-      setManualNombre("");
-      setManualCorreo("");
+      setManualData(buildManualState(excelHeaders));
+      await cargarEstudiantes();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError("Error al agregar estudiante: " + err.message);
@@ -273,17 +437,14 @@ export default function CargueMasivo() {
         throw new Error("No existe token de autenticación. Haz login primero.");
       }
 
-      const response = await fetch(
-        "http://localhost:5000/api/licenses/carga-masiva",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ estudiantes: preview }),
+      const response = await fetch(`${API_BASE}/api/licenses/carga-masiva`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ estudiantes: preview }),
+      });
 
       const data = await response.json();
       if (!response.ok) {
@@ -293,6 +454,7 @@ export default function CargueMasivo() {
       setSuccess(data.message || "Licencias activadas correctamente");
       setPreview([]);
       setFileName("");
+      await cargarEstudiantes();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError("Error al confirmar: " + err.message);
@@ -343,21 +505,28 @@ export default function CargueMasivo() {
 
       <div className="cm-manual-add">
         <h3>Agregar estudiante manualmente</h3>
+        <p className="cm-manual-note">
+          Completa los mismos campos detectados en el Excel para registrar un
+          estudiante manualmente.
+        </p>
         <div className="cm-manual-fields">
-          <input
-            type="text"
-            placeholder="Nombre completo"
-            value={manualNombre}
-            onChange={(e) => setManualNombre(e.target.value)}
-            disabled={loading}
-          />
-          <input
-            type="email"
-            placeholder="Correo electrónico"
-            value={manualCorreo}
-            onChange={(e) => setManualCorreo(e.target.value)}
-            disabled={loading}
-          />
+          {excelHeaders.map((header) => (
+            <label key={header} className="cm-field">
+              <span>{getFieldLabel(header)}</span>
+              <input
+                type={getFieldType(header)}
+                placeholder={getFieldLabel(header)}
+                value={manualData[header] || ""}
+                onChange={(e) =>
+                  setManualData((currentData) => ({
+                    ...currentData,
+                    [header]: e.target.value,
+                  }))
+                }
+                disabled={loading}
+              />
+            </label>
+          ))}
           <button
             className="cm-btn"
             type="button"
@@ -367,6 +536,52 @@ export default function CargueMasivo() {
             {loading ? "Procesando..." : "Agregar estudiante"}
           </button>
         </div>
+      </div>
+
+      <div className="cm-preview cm-students-panel">
+        <div className="cm-panel-head">
+          <h3>Estudiantes registrados</h3>
+          <span>
+            {studentsLoading ? "Cargando..." : `${students.length} estudiantes`}
+          </span>
+        </div>
+
+        {students.length === 0 ? (
+          <div className="cm-empty">
+            {studentsLoading
+              ? "Consultando estudiantes..."
+              : "Todavía no hay estudiantes registrados para mostrar."}
+          </div>
+        ) : (
+          <div className="cm-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Estudiante</th>
+                  <th>Documento</th>
+                  <th>Correo</th>
+                  <th>Ficha</th>
+                  <th>Programa</th>
+                  <th>Licencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((student, index) => (
+                  <tr key={student._id || `${student.email}-${index}`}>
+                    <td>{index + 1}</td>
+                    <td>{student.name}</td>
+                    <td>{formatDocumento(student)}</td>
+                    <td>{student.email}</td>
+                    <td>{student.perfilSena?.ficha || "-"}</td>
+                    <td>{student.perfilSena?.programaFormacion || "-"}</td>
+                    <td>{student.licencia?.estado || "Sin licencia"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* PREVIEW */}

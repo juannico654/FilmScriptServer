@@ -1,16 +1,130 @@
-# React + Vite
+# FilmScript - Guia de Despliegue Completo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Esta aplicacion tiene dos servicios:
 
-Currently, two official plugins are available:
+- Frontend: React + Vite (carpeta raiz)
+- Backend: Node + Express + MongoDB (carpeta backend)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Arquitectura recomendada
 
-## React Compiler
+- Backend en Render (o Railway)
+- Frontend en Vercel (o Netlify)
+- Base de datos en MongoDB Atlas
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 1. Variables de entorno
 
-## Expanding the ESLint configuration
+Archivos de referencia incluidos en el repositorio:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- .env.example (frontend)
+- backend/.env.example (backend)
+
+### Backend (Render/Railway)
+
+Configura estas variables en el panel del servicio backend:
+
+- MONGO_URI
+- JWT_SECRET
+- PORT (Render lo define automaticamente)
+- NODE_ENV=production
+- ADMIN_EMAIL
+- ADMIN_PASSWORD
+- AI_API_KEY
+- AI_MODEL (ejemplo: gpt-4.1-mini)
+- AI_API_URL (ejemplo: https://api.openai.com/v1/chat/completions)
+- CORS_ORIGIN (URL del frontend, por ejemplo https://filmscript.vercel.app)
+
+Si usaras invitaciones por correo SMTP:
+
+- APP_URL
+- SMTP_HOST
+- SMTP_PORT
+- SMTP_SECURE
+- SMTP_USER
+- SMTP_PASS
+- FROM_EMAIL
+- FROM_NAME
+- REPLY_TO_EMAIL
+
+### Frontend (Vercel/Netlify)
+
+- VITE_API_URL=https://TU_BACKEND.onrender.com
+
+## 2. Desplegar backend en Render
+
+Opcion recomendada (automatica): usa el archivo render.yaml incluido en la raiz.
+
+1. En Render elige "Blueprint".
+2. Conecta el repositorio.
+3. Render detecta render.yaml y crea el servicio backend.
+4. Completa los envVars marcados como sync: false.
+
+Opcion manual (si no usas Blueprint):
+
+1. Sube el proyecto a GitHub.
+2. En Render crea un "Web Service" nuevo.
+3. Selecciona el repositorio.
+4. Configura:
+	- Root Directory: backend
+	- Build Command: npm install
+	- Start Command: npm start
+5. Agrega las variables de entorno del backend.
+6. Deploy.
+7. Verifica salud:
+	- GET https://TU_BACKEND.onrender.com/api/health
+
+## 3. Desplegar frontend en Vercel
+
+Opcion recomendada: importar el proyecto con el archivo vercel.json incluido en la raiz.
+
+1. En Vercel, Import Project desde GitHub.
+2. Configura:
+	- Root Directory: /
+	- Framework preset: Vite
+	- Build command: npm run build
+	- Output directory: dist
+3. Agrega variable:
+	- VITE_API_URL=https://TU_BACKEND.onrender.com
+4. Deploy.
+
+## 4. Conectar CORS entre frontend y backend
+
+En backend define:
+
+- CORS_ORIGIN=https://TU_FRONTEND.vercel.app
+
+Si manejas varios dominios, separalos por coma:
+
+- CORS_ORIGIN=https://TU_FRONTEND.vercel.app,https://www.tudominio.com
+
+## 5. Pruebas de produccion (checklist)
+
+1. Registro e inicio de sesion.
+2. Crear y guardar proyecto.
+3. Abrir editor y guardar cambios.
+4. Probar IA (feedback + resumen).
+5. Descargar resumen en PDF y Word.
+6. Probar panel administrador.
+7. Probar compartir colaborador.
+
+## 6. "Instalar en PCs"
+
+Con este despliegue, los usuarios no necesitan instalar software:
+
+1. Abren la URL del frontend en cualquier PC.
+2. Opcional: crear acceso directo en escritorio del navegador.
+
+Si mas adelante quieres instalador real (.exe/.msi), eso seria una fase adicional con Electron.
+
+## 7. Comandos locales
+
+Frontend:
+
+- npm install
+- npm run dev
+- npm run build
+
+Backend:
+
+- cd backend
+- npm install
+- npm run dev

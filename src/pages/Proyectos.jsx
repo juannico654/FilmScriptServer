@@ -4,12 +4,7 @@ const SL = { active: "En curso", draft: "Borrador", done: "Finalizado" };
 const SC = { active: "b-active", draft: "b-draft", done: "b-done" };
 const FILTER_OPTS = ["Todos", "En curso", "Borrador", "Finalizado"];
 
-export default function Proyectos({
-  onEdit,
-  onCommentProject,
-  projects = [],
-  onDeleteProject,
-}) {
+export default function Proyectos({ onEdit, projects = [], onDeleteProject }) {
   const [filter, setFilter] = useState("Todos");
   const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState(null); // id del proyecto a eliminar
@@ -70,6 +65,7 @@ export default function Proyectos({
             Crea tu primer proyecto y empieza a escribir tu historia
             cinematográfica.
           </div>
+          <div className="empty-preview-label">Vista previa</div>
           <div className="sample-card sample-card-project">
             <div className="sample-card-tag">Ejemplo</div>
             <div className="sample-card-title">Proyecto de muestra</div>
@@ -115,38 +111,32 @@ export default function Proyectos({
                   ⋮
                   {menuOpen === p.id && (
                     <div className="proj-dropdown">
-                      <div
-                        className="proj-dd-item"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(p.name, null, p);
-                          setMenuOpen(null);
-                        }}
-                      >
-                        ✏ Editar
-                      </div>
-                      <div
-                        className="proj-dd-item"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (typeof onCommentProject === "function") {
-                            onCommentProject(p, null);
-                          }
-                          setMenuOpen(null);
-                        }}
-                      >
-                        💬 Comentar
-                      </div>
-                      <div
-                        className="proj-dd-item proj-dd-del"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirm(p.id);
-                          setMenuOpen(null);
-                        }}
-                      >
-                        🗑 Eliminar
-                      </div>
+                      {p.canEdit ? (
+                        <>
+                          <div
+                            className="proj-dd-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(p.name, null, p);
+                              setMenuOpen(null);
+                            }}
+                          >
+                            ✏ Editar
+                          </div>
+                          <div
+                            className="proj-dd-item proj-dd-del"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirm(p.id);
+                              setMenuOpen(null);
+                            }}
+                          >
+                            🗑 Eliminar
+                          </div>
+                        </>
+                      ) : (
+                        <div className="proj-dd-item">👁 Solo lectura</div>
+                      )}
                     </div>
                   )}
                 </div>
