@@ -14,10 +14,42 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const normalizeOrigin = (origin = "") => origin.replace(/\/+$/, "");
+
+const escapeRegex = (value = "") =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const isOriginAllowed = (requestOrigin = "") => {
+  const normalizedRequestOrigin = normalizeOrigin(requestOrigin);
+
+  if (!normalizedRequestOrigin) return true;
+  if (allowedOrigins.length === 0) return true;
+  if (allowedOrigins.includes("*")) return true;
+
+  return allowedOrigins.some((originRule) => {
+    const rule = normalizeOrigin(originRule);
+    if (!rule) return false;
+
+    if (rule.includes("*")) {
+      const pattern = `^${rule.split("*").map(escapeRegex).join(".*")}$`;
+      return new RegExp(pattern, "i").test(normalizedRequestOrigin);
+    }
+
+    return rule.toLowerCase() === normalizedRequestOrigin.toLowerCase();
+  });
+};
+
 // Middlewares
 app.use(
   cors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+    origin(origin, callback) {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origen no permitido por CORS"));
+    },
   }),
 );
 app.use(express.json());
