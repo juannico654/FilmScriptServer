@@ -1,130 +1,125 @@
-# FilmScript - Guia de Despliegue Completo
+# FilmScript - Despliegue Gratis Paso a Paso
 
-Esta aplicacion tiene dos servicios:
+Este proyecto ya esta preparado para desplegarse gratis, sin dominio pago y con IA opcional.
 
-- Frontend: React + Vite (carpeta raiz)
-- Backend: Node + Express + MongoDB (carpeta backend)
+Servicios:
 
-## Arquitectura recomendada
+- Frontend: React + Vite (raiz)
+- Backend: Node + Express (carpeta backend)
+- Base de datos: MongoDB Atlas (plan Free)
 
-- Backend en Render (o Railway)
-- Frontend en Vercel (o Netlify)
-- Base de datos en MongoDB Atlas
+Stack recomendado (100% gratis):
 
-## 1. Variables de entorno
+- Frontend en Vercel (subdominio gratis .vercel.app)
+- Backend en Render (subdominio gratis .onrender.com)
+- MongoDB Atlas M0 Free
 
-Archivos de referencia incluidos en el repositorio:
+## 1) Crear la base de datos gratis (MongoDB Atlas)
 
-- .env.example (frontend)
-- backend/.env.example (backend)
+1. Crea cuenta en MongoDB Atlas.
+2. Crea un cluster M0 Free.
+3. En "Database Access" crea un usuario con password.
+4. En "Network Access" agrega IP 0.0.0.0/0 (o la que prefieras).
+5. Copia tu cadena de conexion (MONGO_URI).
 
-### Backend (Render/Railway)
+Ejemplo:
 
-Configura estas variables en el panel del servicio backend:
+- mongodb+srv://usuario:password@cluster0.xxxxx.mongodb.net/filmscript?retryWrites=true&w=majority
 
-- MONGO_URI
-- JWT_SECRET
-- PORT (Render lo define automaticamente)
-- NODE_ENV=production
-- ADMIN_EMAIL
-- ADMIN_PASSWORD
-- AI_API_KEY
-- AI_MODEL (ejemplo: gpt-4.1-mini)
-- AI_API_URL (ejemplo: https://api.openai.com/v1/chat/completions)
-- CORS_ORIGIN (URL del frontend, por ejemplo https://filmscript.vercel.app)
+## 2) Desplegar backend gratis en Render
 
-Si usaras invitaciones por correo SMTP:
-
-- APP_URL
-- SMTP_HOST
-- SMTP_PORT
-- SMTP_SECURE
-- SMTP_USER
-- SMTP_PASS
-- FROM_EMAIL
-- FROM_NAME
-- REPLY_TO_EMAIL
-
-### Frontend (Vercel/Netlify)
-
-- VITE_API_URL=https://TU_BACKEND.onrender.com
-
-## 2. Desplegar backend en Render
-
-Opcion recomendada (automatica): usa el archivo render.yaml incluido en la raiz.
-
-1. En Render elige "Blueprint".
-2. Conecta el repositorio.
-3. Render detecta render.yaml y crea el servicio backend.
-4. Completa los envVars marcados como sync: false.
-
-Opcion manual (si no usas Blueprint):
+El repo ya trae render.yaml en la raiz, asi que puedes usar Blueprint.
 
 1. Sube el proyecto a GitHub.
-2. En Render crea un "Web Service" nuevo.
-3. Selecciona el repositorio.
-4. Configura:
-	- Root Directory: backend
-	- Build Command: npm install
-	- Start Command: npm start
-5. Agrega las variables de entorno del backend.
-6. Deploy.
-7. Verifica salud:
-	- GET https://TU_BACKEND.onrender.com/api/health
+2. En Render crea "Blueprint".
+3. Conecta el repositorio.
+4. Render detecta render.yaml y crea el servicio backend.
+5. Completa variables de entorno (las de sync: false).
 
-## 3. Desplegar frontend en Vercel
+Variables minimas obligatorias en backend:
 
-Opcion recomendada: importar el proyecto con el archivo vercel.json incluido en la raiz.
+- NODE_ENV=production
+- MONGO_URI=tu_cadena_atlas
+- JWT_SECRET=una_clave_larga_y_segura
+- ADMIN_EMAIL=tu_correo_admin
+- ADMIN_PASSWORD=tu_password_admin
+- CORS_ORIGIN=https://tu-frontend.vercel.app
 
-1. En Vercel, Import Project desde GitHub.
-2. Configura:
-	- Root Directory: /
-	- Framework preset: Vite
-	- Build command: npm run build
-	- Output directory: dist
-3. Agrega variable:
-	- VITE_API_URL=https://TU_BACKEND.onrender.com
+Variables opcionales:
+
+- IA: AI_API_KEY, AI_MODEL, AI_API_URL
+- Correo SMTP: APP_URL, SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, FROM_EMAIL, FROM_NAME, REPLY_TO_EMAIL
+
+Nota sobre IA:
+
+- Si NO configuras AI_API_KEY, la app funciona igual en funciones principales.
+- Solo la parte de "analisis IA" quedara deshabilitada.
+
+Verifica backend:
+
+- GET https://tu-backend.onrender.com/api/health
+
+## 3) Desplegar frontend gratis en Vercel
+
+El repo ya trae vercel.json en la raiz.
+
+1. En Vercel selecciona "Import Project" desde GitHub.
+2. Confirma configuracion:
+   - Root Directory: /
+   - Framework: Vite
+   - Build Command: npm run build
+   - Output Directory: dist
+3. Agrega variable de entorno:
+   - VITE_API_URL=https://tu-backend.onrender.com
 4. Deploy.
 
-## 4. Conectar CORS entre frontend y backend
+## 4) Conectar frontend y backend (CORS)
 
-En backend define:
+En Render, variable CORS_ORIGIN debe ser exactamente tu URL de Vercel:
 
-- CORS_ORIGIN=https://TU_FRONTEND.vercel.app
+- CORS_ORIGIN=https://tu-proyecto.vercel.app
 
-Si manejas varios dominios, separalos por coma:
+Si tienes mas de un frontend, separa por comas:
 
-- CORS_ORIGIN=https://TU_FRONTEND.vercel.app,https://www.tudominio.com
+- CORS_ORIGIN=https://tu-proyecto.vercel.app,https://otro-frontend.vercel.app
 
-## 5. Pruebas de produccion (checklist)
+## 5) Checklist minimo de produccion
 
-1. Registro e inicio de sesion.
-2. Crear y guardar proyecto.
+1. Registro de usuario e inicio de sesion.
+2. Crear proyecto.
 3. Abrir editor y guardar cambios.
-4. Probar IA (feedback + resumen).
-5. Descargar resumen en PDF y Word.
-6. Probar panel administrador.
-7. Probar compartir colaborador.
+4. Cerrar sesion e iniciar sesion nuevamente (datos persisten).
+5. Descargar/exportar en PDF y Word.
+6. Acceso de administrador.
+7. Compartir colaborador (sin SMTP envia sin correo, pero comparte acceso).
 
-## 6. "Instalar en PCs"
+## 6) Uso sin dominio pago
 
-Con este despliegue, los usuarios no necesitan instalar software:
+No necesitas comprar dominio:
 
-1. Abren la URL del frontend en cualquier PC.
-2. Opcional: crear acceso directo en escritorio del navegador.
+- Frontend: https://tuapp.vercel.app
+- Backend: https://tuapi.onrender.com
 
-Si mas adelante quieres instalador real (.exe/.msi), eso seria una fase adicional con Electron.
-
-## 7. Comandos locales
+## 7) Si alguien descarga el proyecto y lo corre localmente
 
 Frontend:
 
-- npm install
-- npm run dev
-- npm run build
+1. Copiar .env.example a .env
+2. Definir VITE_API_URL=http://localhost:5000
+3. Ejecutar npm install
+4. Ejecutar npm run dev
 
 Backend:
 
-- cd backend
-- npm install
-- npm run dev
+1. Copiar backend/.env.example a backend/.env
+2. Completar MONGO_URI, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
+3. Ejecutar cd backend
+4. Ejecutar npm install
+5. Ejecutar npm run dev
+
+## 8) Diagnostico rapido si algo falla
+
+1. /api/health no responde: revisar MONGO_URI en Render.
+2. Error CORS en navegador: revisar CORS_ORIGIN exacto.
+3. Frontend no guarda: revisar VITE_API_URL.
+4. IA falla: esperado si no definiste AI_API_KEY.
