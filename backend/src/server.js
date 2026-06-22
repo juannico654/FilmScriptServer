@@ -130,6 +130,38 @@ app.get("/", (req, res) =>
   res.send("¡Bienvenido al Backend de FilmScript! 🎬"),
 );
 
+// Error handler global: asegura respuestas JSON (incluyendo errores de subida de archivos)
+app.use((err, req, res, next) => {
+  if (!err) return next();
+
+  const isMulterError = err.name === "MulterError";
+
+  if (isMulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        message: "El archivo supera el limite de 25 MB permitido.",
+        code: err.code,
+      });
+    }
+
+    return res.status(400).json({
+      message: err.message || "Error al procesar el archivo cargado.",
+      code: err.code || "MULTER_ERROR",
+    });
+  }
+
+  if (err.message === "Origen no permitido por CORS") {
+    return res.status(403).json({
+      message: "Origen no permitido por CORS.",
+    });
+  }
+
+  console.error("❌ Error de servidor:", err.message);
+  return res.status(500).json({
+    message: "Error interno del servidor",
+  });
+});
+
 // Conexión a MongoDB
 const connectDB = async () => {
   try {

@@ -35,6 +35,27 @@ function countWords(text) {
     .filter(Boolean).length;
 }
 
+async function readApiResponse(response) {
+  const raw = await response.text();
+  const contentType = (
+    response.headers.get("content-type") || ""
+  ).toLowerCase();
+  const looksLikeJson =
+    contentType.includes("application/json") ||
+    raw.trim().startsWith("{") ||
+    raw.trim().startsWith("[");
+
+  if (!looksLikeJson) {
+    return { data: null, raw };
+  }
+
+  try {
+    return { data: JSON.parse(raw), raw };
+  } catch {
+    return { data: null, raw };
+  }
+}
+
 function parseScriptText(text) {
   const lines = normalizeLines(text);
   const blocks = [];
@@ -151,6 +172,11 @@ export default function ImportarGuiones({ onEdit, projects = [], onBack }) {
       return;
     }
 
+    if (file.size > 25 * 1024 * 1024) {
+      setError("El archivo supera el limite de 25 MB permitido para importar.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setFileName(file.name);
@@ -174,14 +200,28 @@ export default function ImportarGuiones({ onEdit, projects = [], onBack }) {
       const response = await fetch(`${API_BASE}/api/imports/parse`, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
 
-      const data = await response.json();
+      const { data, raw } = await readApiResponse(response);
+
       if (!response.ok) {
-        throw new Error(data.message || "No se pudo procesar el archivo");
+        const serverMessage =
+          data?.message ||
+          (raw?.toLowerCase().includes("doctype")
+            ? "El servidor devolvio HTML en lugar de JSON. Revisa VITE_API_URL y el deploy del backend."
+            : "No se pudo procesar el archivo");
+
+        throw new Error(`${serverMessage} (HTTP ${response.status})`);
+      }
+
+      if (!data || typeof data !== "object") {
+        throw new Error(
+          "Respuesta invalida del servidor al importar. Verifica que el backend este actualizado.",
+        );
       }
 
       const parsedBlocks = parseScriptText(data.text);
